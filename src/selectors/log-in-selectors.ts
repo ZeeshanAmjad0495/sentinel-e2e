@@ -7,7 +7,7 @@ const enum LoginSelectors {
   LOGIN_BUTTON = "button.btn-login[type='submit']",
 
   // Failure state: form is marked invalid (stable, language-independent).
-  INVALID_STATE = ".page-card-body.invalid",
+  INVALID_STATE = ".page-card-body.invalid .btn-login[type='submit']",
 
   // Optional: presence of login-with-email-link block confirms we're still on login UI.
   LOGIN_WITH_EMAIL_LINK = "a.btn-login-with-email-link",
