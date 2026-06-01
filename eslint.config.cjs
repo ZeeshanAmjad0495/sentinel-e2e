@@ -25,6 +25,10 @@ module.exports = [
             'playwright.unit.config.ts',
             'packages/*/tests/*.test.ts',
           ],
+          // The flat unit tests (one file per behavior) exceed typescript-eslint's
+          // default cap of 8 default-project files. Raise it so type-aware linting
+          // stays on for every `packages/*/tests/*.test.ts` as the suite grows.
+          maximumDefaultProjectFileMatchCount_THIS_WILL_SLOW_DOWN_LINTING: 100,
         },
         tsconfigRootDir: __dirname,
         sourceType: 'module',
