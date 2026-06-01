@@ -24,5 +24,7 @@ export {
   NoopSink,
   CompositeSink,
 } from "./sink";
+export { JsonlSink } from "./jsonl-sink";
+export type { JsonlSinkOptions } from "./jsonl-sink";
 export { startTimer, durationMsFromNs } from "./timers";
 export type { Timer, HrClock } from "./timers";
