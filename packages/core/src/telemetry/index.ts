@@ -16,3 +16,5 @@ export type {
   FlowFinishedEvent,
   TelemetryEvent,
 } from "./signals";
+export { startTimer, durationMsFromNs } from "./timers";
+export type { Timer, HrClock } from "./timers";
