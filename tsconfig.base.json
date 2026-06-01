@@ -1,0 +1,25 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "CommonJS",
+    "moduleResolution": "Node",
+    "strict": true,
+    "noImplicitAny": true,
+    "noUncheckedIndexedAccess": true,
+    "esModuleInterop": true,
+    "resolveJsonModule": true,
+    "declaration": true,
+    "declarationMap": true,
+    "sourceMap": true,
+    "skipLibCheck": true,
+    "baseUrl": ".",
+    "paths": {
+      "@sentinel/contracts": ["packages/contracts/src/index.ts"],
+      "@sentinel/contracts/*": ["packages/contracts/src/*"],
+      "@sentinel/core": ["packages/core/src/index.ts"],
+      "@sentinel/core/*": ["packages/core/src/*"],
+      "@sentinel/driver-playwright": ["packages/driver-playwright/src/index.ts"],
+      "@sentinel/driver-playwright/*": ["packages/driver-playwright/src/*"]
+    }
+  }
+}
