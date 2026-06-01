@@ -3,7 +3,10 @@
   "version": "1.0.0",
   "private": true,
   "type": "commonjs",
-  "workspaces": ["packages/*", "examples/*"],
+  "workspaces": [
+    "packages/*",
+    "examples/*"
+  ],
   "scripts": {
     "typecheck": "tsc -b",
     "test": "playwright test --config examples/web-erpnext/playwright.config.ts",
@@ -18,8 +21,13 @@
     "prepare": "husky"
   },
   "lint-staged": {
-    "*.{ts,tsx}": ["eslint --fix", "prettier --write"],
-    "*.{json,md,yml,yaml}": ["prettier --write"]
+    "*.{ts,tsx}": [
+      "eslint --fix",
+      "prettier --write"
+    ],
+    "*.{json,md,yml,yaml}": [
+      "prettier --write"
+    ]
   },
   "devDependencies": {
     "@commitlint/cli": "^20.4.2",

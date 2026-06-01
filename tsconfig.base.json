@@ -18,7 +18,9 @@
       "@sentinel/contracts/*": ["packages/contracts/src/*"],
       "@sentinel/core": ["packages/core/src/index.ts"],
       "@sentinel/core/*": ["packages/core/src/*"],
-      "@sentinel/driver-playwright": ["packages/driver-playwright/src/index.ts"],
+      "@sentinel/driver-playwright": [
+        "packages/driver-playwright/src/index.ts"
+      ],
       "@sentinel/driver-playwright/*": ["packages/driver-playwright/src/*"]
     }
   }
