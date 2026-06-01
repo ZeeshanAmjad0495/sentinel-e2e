@@ -6,3 +6,13 @@ export type {
   TelemetryEventType,
   TelemetryEnvelope,
 } from "./event";
+export type {
+  LocatorResolvedEvent,
+  AssertionEvent,
+  RetryEvent,
+  BusinessFailureEvent,
+  SystemFailureEvent,
+  ArtifactCapturedEvent,
+  FlowFinishedEvent,
+  TelemetryEvent,
+} from "./signals";
