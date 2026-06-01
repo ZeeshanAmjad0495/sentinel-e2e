@@ -17,7 +17,15 @@ module.exports = [
     languageOptions: {
       parser: tsParser,
       parserOptions: {
-        projectService: true,
+        projectService: {
+          // Tooling/test files that live outside a composite project's `include`
+          // (the root unit config and package unit tests are run by the unit
+          // runner, not compiled by `tsc -b`) fall back to the default project.
+          allowDefaultProject: [
+            'playwright.unit.config.ts',
+            'packages/*/tests/*.test.ts',
+          ],
+        },
         tsconfigRootDir: __dirname,
         sourceType: 'module',
       },
@@ -63,12 +71,25 @@ module.exports = [
     },
   },
   {
-    // Exemption (last match wins): the driver adapter + all test-runner dirs.
+    // Exemption (last match wins): the driver adapter + all test-runner dirs
+    // and the Playwright runner config files (test-runner tooling).
     files: [
       'packages/driver-playwright/**/*.ts',
       'packages/**/tests/**',
       'examples/web-erpnext/tests/**',
+      'playwright.unit.config.ts',
+      'examples/web-erpnext/playwright.config.ts',
     ],
+    rules: {
+      'no-restricted-imports': 'off',
+    },
+  },
+  {
+    // TEMPORARY (S1 → removed in S4): the migrated auth slice is still the
+    // OLD Playwright-coupled version. Its rewrite onto @sentinel/driver-playwright
+    // happens in S4, which deletes this block. Until then, exempt the moved
+    // app/flow/component code from the Playwright import ban.
+    files: ['examples/web-erpnext/src/**/*.ts'],
     rules: {
       'no-restricted-imports': 'off',
     },
