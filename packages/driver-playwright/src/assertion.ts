@@ -58,7 +58,6 @@ export class PlaywrightAssertion implements Assertion {
     }
   }
 
-  // Stubbed here — fully implemented in Task 6.
   async waitForFirstOf<L extends string>(
     conditions: ReadonlyArray<{
       label: L;
@@ -67,9 +66,84 @@ export class PlaywrightAssertion implements Assertion {
     }>,
     opts?: { timeoutMs?: number },
   ): Promise<L> {
-    void conditions;
-    void opts;
-    throw new Error("waitForFirstOf implemented in Task 6");
+    const timeoutMs = opts?.timeoutMs ?? this.defaultTimeoutMs;
+    const start = process.hrtime.bigint();
+
+    // Shared winner latch: the first branch to win flips this; losers see it and stop.
+    let winningLabel: L | null = null;
+
+    type BranchOutcome = {
+      label: L;
+      won: boolean;
+      reachedState: ElementState | "none";
+      resolvedRank: number | null;
+    };
+
+    const runOne = async (cond: {
+      label: L;
+      target: Locator;
+      state: ElementState;
+    }): Promise<BranchOutcome> => {
+      const deadline = Date.now() + timeoutMs;
+      let reachedState: ElementState | "none" = "none";
+      let resolvedRank: number | null = null;
+
+      // Poll the branch in short slices so a winner elsewhere cancels us promptly.
+      while (Date.now() < deadline && winningLabel === null) {
+        const remaining = Math.min(100, deadline - Date.now());
+        const r = await this.runBranch(cond.target, cond.state, remaining);
+        resolvedRank = r.resolvedRank;
+        reachedState = closest(reachedState, r.reachedState);
+        if (r.matched) {
+          // Claim the win atomically (single-threaded JS — first writer wins).
+          if (winningLabel === null) winningLabel = cond.label;
+          return {
+            label: cond.label,
+            won: winningLabel === cond.label,
+            reachedState: cond.state,
+            resolvedRank,
+          };
+        }
+      }
+      return { label: cond.label, won: false, reachedState, resolvedRank };
+    };
+
+    // Every branch resolves (never rejects) -> Promise.all has no losers to leak.
+    const outcomes = await Promise.all(conditions.map(runOne));
+
+    const branchProgress: BranchProgress[] = outcomes.map((o) => ({
+      label: o.label,
+      reachedState: o.reachedState,
+      resolvedRank: o.resolvedRank,
+    }));
+
+    const winner = outcomes.find((o) => o.won);
+    if (winner) {
+      this.emitAssertion(
+        conditions.find((c) => c.label === winner.label)!.target,
+        conditions.find((c) => c.label === winner.label)!.state,
+        true,
+        winner.resolvedRank ?? 0,
+        winner.label,
+        branchProgress,
+      );
+      return winner.label;
+    }
+
+    // No winner: emit + THROW (never resolve-on-timeout — the §10.5 fix).
+    this.emitAssertion(
+      conditions[0]!.target,
+      conditions[0]!.state,
+      false,
+      0,
+      undefined,
+      branchProgress,
+    );
+    this.throwTimeout(
+      `waitForFirstOf timed out after ${timeoutMs}ms; no branch reached its state`,
+      start,
+      branchProgress,
+    );
   }
 
   /**
@@ -162,4 +236,20 @@ export class PlaywrightAssertion implements Assertion {
       branchProgress,
     });
   }
+}
+
+const STATE_ORDER: Record<ElementState | "none", number> = {
+  none: 0,
+  detached: 1,
+  attached: 2,
+  hidden: 3,
+  visible: 4,
+  enabled: 5,
+};
+
+function closest(
+  a: ElementState | "none",
+  b: ElementState | "none",
+): ElementState | "none" {
+  return STATE_ORDER[b] > STATE_ORDER[a] ? b : a;
 }
