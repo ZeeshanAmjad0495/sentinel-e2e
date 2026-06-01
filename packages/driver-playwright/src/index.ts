@@ -1,1 +1,1 @@
-export {};
+export { PlaywrightDriver } from "./driver";

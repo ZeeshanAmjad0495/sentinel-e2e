@@ -6,6 +6,6 @@
     "outDir": "dist",
     "types": ["node", "@playwright/test"]
   },
-  "references": [{ "path": "../contracts" }, { "path": "../core" }],
-  "include": ["src/**/*.ts"]
+  "include": ["src/**/*.ts"],
+  "references": [{ "path": "../contracts" }, { "path": "../core" }]
 }
