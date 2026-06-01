@@ -6,6 +6,7 @@ module.exports = [
   {
     ignores: [
       'dist/**',
+      '**/dist/**',
       'node_modules/**',
       'playwright-report/**',
       'test-results/**',
@@ -16,7 +17,7 @@ module.exports = [
     languageOptions: {
       parser: tsParser,
       parserOptions: {
-        project: './tsconfig.json',
+        projectService: true,
         tsconfigRootDir: __dirname,
         sourceType: 'module',
       },
@@ -36,6 +37,40 @@ module.exports = [
       '@typescript-eslint/consistent-type-imports': ['error', { prefer: 'type-imports' }],
 
       // Style kept mostly to Prettier; don't fight formatting in ESLint.
+    },
+  },
+  {
+    // SEAM boundary: app/flow/component code must not import Playwright.
+    files: ['**/*.ts'],
+    rules: {
+      'no-restricted-imports': [
+        'error',
+        {
+          paths: [
+            {
+              name: '@playwright/test',
+              message:
+                'Playwright is confined to @sentinel/driver-playwright and test-runner dirs.',
+            },
+            {
+              name: 'playwright',
+              message:
+                'Playwright is confined to @sentinel/driver-playwright and test-runner dirs.',
+            },
+          ],
+        },
+      ],
+    },
+  },
+  {
+    // Exemption (last match wins): the driver adapter + all test-runner dirs.
+    files: [
+      'packages/driver-playwright/**/*.ts',
+      'packages/**/tests/**',
+      'examples/web-erpnext/tests/**',
+    ],
+    rules: {
+      'no-restricted-imports': 'off',
     },
   },
   eslintConfigPrettier,
