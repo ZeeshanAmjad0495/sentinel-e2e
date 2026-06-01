@@ -1,4 +1,6 @@
 // packages/core/tests/telemetry-barrel.test.ts
+import os from "node:os";
+import path from "node:path";
 import { test, expect } from "@playwright/test";
 import {
   TELEMETRY_SCHEMA_VERSION,
@@ -25,6 +27,11 @@ test("telemetry public surface is re-exported from @sentinel/core", () => {
 });
 
 test("a CompositeSink([InMemorySink, JsonlSink]) is constructible from the barrel", () => {
-  const composite = new CompositeSink([new InMemorySink()]);
+  const composite = new CompositeSink([
+    new InMemorySink(),
+    new JsonlSink({
+      filePath: path.join(os.tmpdir(), "sentinel-test-barrel.jsonl"),
+    }),
+  ]);
   expect(composite).toBeInstanceOf(CompositeSink);
 });

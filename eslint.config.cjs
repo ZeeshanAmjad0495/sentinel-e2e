@@ -17,19 +17,7 @@ module.exports = [
     languageOptions: {
       parser: tsParser,
       parserOptions: {
-        projectService: {
-          // Tooling/test files that live outside a composite project's `include`
-          // (the root unit config and package unit tests are run by the unit
-          // runner, not compiled by `tsc -b`) fall back to the default project.
-          allowDefaultProject: [
-            'playwright.unit.config.ts',
-            'packages/*/tests/*.test.ts',
-          ],
-          // The flat unit tests (one file per behavior) exceed typescript-eslint's
-          // default cap of 8 default-project files. Raise it so type-aware linting
-          // stays on for every `packages/*/tests/*.test.ts` as the suite grows.
-          maximumDefaultProjectFileMatchCount_THIS_WILL_SLOW_DOWN_LINTING: 100,
-        },
+        project: ['./tsconfig.eslint.json', './examples/web-erpnext/tsconfig.json'],
         tsconfigRootDir: __dirname,
         sourceType: 'module',
       },
