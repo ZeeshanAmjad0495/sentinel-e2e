@@ -85,3 +85,15 @@ export class NoopSink implements TelemetrySink {
     return this;
   }
 }
+
+export class CompositeSink implements TelemetrySink {
+  constructor(private readonly members: readonly TelemetrySink[]) {}
+
+  emit(event: TelemetryEvent): void {
+    for (const m of this.members) m.emit(event);
+  }
+
+  child(name: string): CompositeSink {
+    return new CompositeSink(this.members.map((m) => m.child(name)));
+  }
+}
