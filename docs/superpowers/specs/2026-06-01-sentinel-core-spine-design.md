@@ -45,7 +45,7 @@ sentinel-e2e/                              # workspace root
   package.json                             # "workspaces": ["packages/*","examples/*"]; keep "type":"commonjs"
   tsconfig.base.json                       # strict + noUncheckedIndexedAccess + @sentinel/* paths (lifted from current tsconfig)
   tsconfig.json                            # solution-style: references all packages + example
-  eslint.config.cjs                        # + no-restricted-imports ban on @playwright/test outside driver-playwright
+  eslint.config.cjs                        # + no-restricted-imports ban; parserOptions -> projectService:true (solution-style root tsconfig includes no files)
   packages/
     contracts/                             # @sentinel/contracts — ZERO runtime deps, pure types
       package.json  tsconfig.json
@@ -78,8 +78,23 @@ sentinel-e2e/                              # workspace root
 **Transition mechanics:**
 
 - The empty `src/core/*` stubs (`page-handle.ts`, `telemetry.ts`, `system-failure-error.ts`, `timers.ts`, etc.) are **deleted**; nothing imports them, so there is no fallout. The whole flat `src/` tree is replaced by the package + example layout above (`git mv` where a file survives, e.g. `credentials.ts`, `env.ts`).
-- `tsconfig.base.json` holds `strict`, `noUncheckedIndexedAccess`, `module: CommonJS`, `target: ES2022`, and `paths: { "@sentinel/*": ["packages/*/src", "packages/*/src/index.ts"] }`. Each package's `tsconfig.json` extends the base with `composite: true` and `references` to its dependencies (`core` → `contracts`; `driver-playwright` → `contracts` + `core`; `example` → all three).
-- **Boundary enforcement:** an ESLint `no-restricted-imports` rule bans `@playwright/test` (and `playwright`) everywhere except `packages/driver-playwright/**`. The tool-agnostic boundary becomes a lint failure, not a convention.
+- `tsconfig.base.json` holds `strict`, `noUncheckedIndexedAccess`, `module: CommonJS`, `target: ES2022`, and explicit per-package `paths` (a single `@sentinel/*` glob silently misses the `/src/` segment on subpath imports):
+
+  ```jsonc
+  "paths": {
+    "@sentinel/contracts": ["packages/contracts/src/index.ts"],
+    "@sentinel/contracts/*": ["packages/contracts/src/*"],
+    "@sentinel/core": ["packages/core/src/index.ts"],
+    "@sentinel/core/*": ["packages/core/src/*"],
+    "@sentinel/driver-playwright": ["packages/driver-playwright/src/index.ts"],
+    "@sentinel/driver-playwright/*": ["packages/driver-playwright/src/*"]
+  }
+  ```
+
+  Each package's `tsconfig.json` extends the base with `composite: true` and `references` to its dependencies (`core` → `contracts`; `driver-playwright` → `contracts` + `core`; `example` → all three).
+- **Boundary enforcement:** an ESLint `no-restricted-imports` rule bans `@playwright/test` (and `playwright`) everywhere except `packages/driver-playwright/**` **and the example's test-runner files** (`examples/web-erpnext/tests/**` specs + `_support/fixtures/**`, which legitimately need Playwright's test runner). The ban targets app/flow/component code, not the spec runner; the boundary becomes a lint failure, not a convention. In flat config this is two ordered entries: a global `{ files: ['**/*.ts'], rules: { 'no-restricted-imports': ['error', { paths: ['@playwright/test','playwright'] }] } }`, then a later `{ files: ['packages/driver-playwright/**/*.ts','examples/web-erpnext/tests/**'], rules: { 'no-restricted-imports': 'off' } }` (last match wins).
+- **Typed-lint transition:** the root `tsconfig.json` becomes references-only and includes no files, so the ESLint typed parser is switched from `parserOptions.project: './tsconfig.json'` to `parserOptions.projectService: true` (typescript-eslint v8); otherwise `no-floating-promises`/`no-misused-promises`/`await-thenable` fail to resolve on every `packages/**` and `examples/**` file.
+- **VCS + resolution hygiene:** this slice adds `test-results/` and `playwright-report/` to `.gitignore` (currently absent — only the ESLint/Prettier ignore lists mention them, which do not affect VCS). `@sentinel/*` resolves **exclusively via tsconfig `paths` → `src`**; package `main`/`exports` are omitted (or point at `src/index.ts`) until the deferred publication slice, to avoid a half-true `dist` entry that fails outside the Playwright/tsc loaders.
 - **Playwright runner:** the config moves to `examples/web-erpnext/playwright.config.ts` (`testDir: "./tests"`). Root `package.json` scripts pass `--config examples/web-erpnext/playwright.config.ts`. Playwright's TS loader honors `tsconfig` `paths`, so `@sentinel/*` imports resolve in specs and app code without a build step.
 
 ---
@@ -243,6 +258,10 @@ export interface SessionConfig {
 }
 ```
 
+> **`existingPage` narrowing** is confined to `@sentinel/driver-playwright`: the driver duck-types it (presence of `goto`/`locator`) and throws `DriverSessionError` (`kind:"driver-session"`) on mismatch. The `as Page` cast exists at exactly this one guarded point; no other package narrows `existingPage`.
+>
+> **Id generation:** `Session.id` is minted once via `crypto.randomUUID()` in `@sentinel/core` at `createSession`, and is the single source feeding the JSONL filename and every envelope's `traceId`/`correlationId`. `eventId` is a fresh uuid per `emit`.
+
 ### 3.8 Explicitly EXCLUDED from core
 
 | Concept | Why excluded | Where it lives instead |
@@ -272,7 +291,7 @@ export interface ResultMeta {
   readonly flowName: string;        // "auth.login" — domain intent
   readonly startedAt: number;       // single canonical epoch ms at flow entry
   readonly durationMs: number;
-  readonly artifacts?: Readonly<Record<string, string>>; // e.g. {finalUrl} — OPTIONAL, capability-derived
+  readonly artifacts?: Readonly<Record<string, string>>; // e.g. {traceRef} — OPTIONAL string refs (NOT finalUrl; see below)
 }
 
 export interface Success<T> { readonly status: "success"; readonly data: T; readonly meta: ResultMeta; }
@@ -307,7 +326,7 @@ export interface LoginFailureDetails { readonly username: string; readonly final
 export type LoginResult = Result<LoginSuccessData, LoginReason, LoginFailureDetails>;
 ```
 
-There is **no `toFlatLoginResult`** and no flat interface. The flow returns `LoginResult` (the rich `Result`); the specs and fixtures read `status` / `reason` / `message` (see §8). `finalUrl` survives as an optional artifact on the success/details payload, populated only when `session.supports("navigation")`.
+There is **no `toFlatLoginResult`** and no flat interface. The flow returns `LoginResult` (the rich `Result`); the specs and fixtures read `status` / `reason` / `message` (see §8). `finalUrl` survives as a typed optional field on the success/details payload, populated only when `session.supports("navigation")`. Callers read `result.data.finalUrl` (success) / `result.details?.finalUrl` (failure) — `finalUrl` is a **typed payload field, not a `meta.artifacts` entry** (`Record<string,string>` cannot model an optional typed field, and `noUncheckedIndexedAccess` would widen it to `string | undefined`).
 
 ---
 
@@ -406,6 +425,8 @@ export interface TelemetryEnvelope<T extends TelemetryEventType = TelemetryEvent
 
 ```ts
 // telemetry/signals.ts — classifier-critical payloads
+import type { StrategyKind, ElementState, BranchProgress } from "@sentinel/contracts";
+import type { Artifact, SystemFailureKind } from "../errors";
 export interface LocatorResolvedEvent extends TelemetryEnvelope<"locator.resolved"> {
   logicalName: string;
   resolvedKind: StrategyKind; resolvedRank: number;          // >0 => SELECTOR-DRIFT
@@ -452,6 +473,8 @@ export class NoopSink implements TelemetrySink { emit(): void {} child() { retur
 export class CompositeSink implements TelemetrySink { /* fan-out — SEAM 3 */ }
 ```
 
+**Span/sequence model (specified, not placeholder).** A single per-run `SpanContext` — created at `createSession` and threaded to every sink — owns the monotonic `sequence` counter, generates `spanId` per span, and sets `parentSpanId` on `child()`; sinks do **not** each own counters. `InMemorySink.events` is the flat, append-order array the unit test reads (`emit` pushes, `child` returns a sink writing to the same array under a new span name). `CompositeSink(members: TelemetrySink[])` fans `emit` to every member and returns a `CompositeSink` over each member's `child(name)`. `NoopSink` is the default when no sink is supplied.
+
 ### `JsonlSink` (D-4) — disk export now
 
 ```ts
@@ -465,7 +488,7 @@ export class JsonlSink implements TelemetrySink {
 ```
 
 - **bigint hazard:** `JSON.stringify` throws on `bigint`. `JsonlSink` uses a replacer that stringifies `startMonotonicNs` / `endMonotonicNs`. Documented and unit-tested.
-- **Default wiring:** the example session is created with `new CompositeSink([new InMemorySink(), new JsonlSink({ filePath })])`. `filePath` defaults to `test-results/telemetry/<runId>.jsonl` (runId = `Session.id`). The dir is created on first write. `.gitignore` already ignores `test-results/`.
+- **Default wiring:** the example session is created with `new CompositeSink([new InMemorySink(), new JsonlSink({ filePath })])`. `filePath` defaults to `test-results/telemetry/<runId>.jsonl` (runId = `Session.id`). The dir is created on first write. This slice **adds `test-results/` and `playwright-report/` to `.gitignore`** (currently absent — only the ESLint/Prettier ignore lists mention them, which do not affect VCS).
 - Emission is sync and swallows its own I/O errors (telemetry must never fail a run); a failed write is itself emitted as a best-effort `console.warn`, not thrown.
 
 ### The classifier's three signals — derivable from envelope fields alone
@@ -557,6 +580,8 @@ export const appShellLocators = {
 } satisfies Record<string, Locator>;
 ```
 
+**driver-playwright obligations (each an acceptance hook).** (a) `resolve()` emits `locator.resolved` **before** returning any handle; (b) `waitForFirstOf` maps to `Promise.race` and the driver cancels losing branches (zero unhandled rejections), throwing `TimeoutError` with per-branch `BranchProgress[]` on no winner; (c) `tap`/`typeText` carry actionability waits bounded by `defaultTimeoutMs`; (d) `timers.ts` derives `durationMs` from `process.hrtime.bigint()` deltas, not wall clock.
+
 ---
 
 ## 8. Auth-slice migration map (D-1 full move + D-2 spec edits)
@@ -570,11 +595,12 @@ Verified live defects: **D1** `app-shell.ts:26` captures `page.url()` once (stal
 | `src/ui/components/log-in-form/log-in-form.ts` | **Rewritten** as `components/auth/log-in-form.ts` on `Session` (no `@playwright/test`). `fill→action.typeText`, `submit→action.tap`. | **D4 fixed:** manual poll deleted; the INVALID wait uses the driver `waitForFirstOf`/`waitFor`; throws `TimeoutError` not bare `Error`. `read()` of the message element populates `message`. |
 | `src/ui/components/app-shell/app-shell.ts` | **Rewritten** as `components/auth/app-shell.ts` on `Session`. `ready` exposed as a Locator. | **D1 fixed:** no captured-once URL; readiness is `assert.waitFor(appShellLocators.ready,"visible")`, re-resolved each tick. **D2 fixed:** `waitFor` **throws** on timeout. URL check (if `navigation`) is non-load-bearing reinforcement. |
 | `src/ui/pages/log-in-page.ts` | **Folded into the flow body** (FPM). | **D3 fixed:** dead `waitForSuccessSignal` deleted. The `Promise.race` is replaced by `session.assert.waitForFirstOf([{label:"INVALID",target:loginLocators.invalid,state:"visible"},{label:"SUCCESS",target:appShellLocators.ready,state:"visible"}],{timeoutMs})` — driver owns concurrency + loser-cancellation and **throws on no-winner**. One `correlationId` + one `startedAt` at entry (replaces the two `Date.now()`). Builds `LoginResult` via `ok`/`businessFailure`; emits `flow.finished` + `business.failure`. |
-| `src/flows/auth/log-in.ts` | **Signature preserved (R-1):** `logIn(page, credentials, opts): Promise<LoginResult>`. | Internally wraps the `Page` in `PlaywrightDriver.createSession({ existingPage: page, defaultTimeoutMs })`, runs the flow, returns the rich `LoginResult`. Call sites still pass `page`. |
+| `src/flows/auth/log-in.ts` | **Signature preserved (R-1):** `logIn(page, credentials, opts): Promise<LoginResult>`. | Internally builds `const sink = new CompositeSink([new InMemorySink(), new JsonlSink({ filePath })])` and wraps the `Page` in `PlaywrightDriver.createSession({ existingPage: page, defaultTimeoutMs }, sink)` (telemetry is the required 2nd arg per §3.7). `opts` gains an optional `sink?: TelemetrySink` (default as above) so the §10.4 unit test can inject and read an `InMemorySink`. Returns the rich `LoginResult`; call sites still pass `page`. |
 | `src/domain/auth/log-in-result.ts` | `LoginResult = Result<LoginSuccessData, LoginReason, LoginFailureDetails>` (rich; §4). Flat interface + projection **removed**. | Specs/fixtures updated to nested shape (below). |
 | `src/domain/auth/credentials.ts` | **Moved unchanged** to `examples/web-erpnext/src/domain/auth/credentials.ts`. | `Readonly<{username,password}>` already tool-agnostic. |
-| `src/config/{env,timeout}.ts` | **Moved** to `examples/web-erpnext/src/config/`. `timeout.ts` exports `defaultTimeoutMs` (replaces `10_000` literals). | env vars unchanged (`BASE_URL`, `ADMIN_USER`, `ADMIN_PASSWORD`). |
+| `src/config/{env,timeout}.ts` | `env.ts` **moved** to `examples/web-erpnext/src/config/`; `timeout.ts` **authored new** (currently a 0-byte stub) to export `defaultTimeoutMs` (replaces the `10_000` literals). | env vars unchanged (`BASE_URL`, `ADMIN_USER`, `ADMIN_PASSWORD`). |
 | `src/core/*` 0-byte stubs | **Deleted**; reborn as `@sentinel/contracts` + `@sentinel/core`. | Empty stubs import nothing → no fallout. |
+| All other flat-tree stubs (empty `data-table`/`dialog`/`form` components, empty barrels `src/config/index.ts` + `src/ui/**/index.ts`, `tests/_support/test.config.ts`, dead `index.ts` re-exports) | **Deleted** as unused. | `src/domain/auth/index.ts`'s **value** re-export of `LoginResult` is rewritten to `export type` (it is now a type alias; else `consistent-type-imports` flags it). |
 
 ### Test edits (D-2 — specs migrate to nested shape)
 
@@ -603,7 +629,7 @@ if (result.status !== "success") {
 }
 ```
 
-`loginAsAdmin(page)` keeps its `page` parameter (R-1). `smoke.spec.ts` moves unchanged. The `loginAsAdmin` fixture and `adminCredentials` fixture are otherwise untouched.
+`loginAsAdmin(page)` keeps its `page` parameter (R-1). `smoke.spec.ts` and the fixture files (`fixtures/test.ts`, `fixtures/auth.ts`) keep their `@playwright/test` **runner** imports unchanged, covered by the test-dir lint exemption (§2). The `loginAsAdmin` and `adminCredentials` fixtures are otherwise untouched.
 
 ### `.invalid` MUST-FIX (D-3)
 
@@ -613,7 +639,7 @@ The live code binds `invalidState = submitButton` and detects invalidity via but
 
 ## 9. Residual risks & explicitly deferred items
 
-- **In-flow retry / retry-then-pass is not produced in Slice A.** `RetryEvent` is defined but nothing in the auth flow retries within a run; Playwright spec-level retries create a *new* `correlationId`. Slice A detects infra-flake only **cross-run**. We define the cross-run join key now (`flowRunGroupId`, a stable hash of `flowName` + inputs, distinct from per-run `correlationId`) and emit it on `run.started` / `flow.finished`, but the in-flow `retry` wrapper is deferred.
+- **In-flow retry / retry-then-pass is not produced in Slice A.** `RetryEvent` is defined but nothing in the auth flow retries within a run; Playwright spec-level retries create a *new* `correlationId`. Slice A detects infra-flake only **cross-run**. We define the cross-run join key now (`flowRunGroupId`, a stable hash of `flowName` + **non-secret input identity only — never the password or any credential**, distinct from per-run `correlationId`) and emit it on `run.started` / `flow.finished`, but the in-flow `retry` wrapper is deferred.
 - **`.invalid` structural signal unverified against the live app** — mitigated by the dual-candidate fallback (D-3); live confirmation deferred.
 - **No real second driver / no mobile driver exists yet.** Capability gating, open `StrategyKind`, `GestureTarget`, async `currentUrl?`, and `waitForFirstOf` as a driver-owned primitive are designed so Appium/WDIO are *additive registrations*, but only the Playwright adapter is implemented and proven.
 - **Fuzzy/self-healing scoring, `relative` strategy, OTel span tree, Allure/JUnit sinks, npm-package publication (real `dist` builds), multiremote** — declared in type space (non-retrofit) but **unimplemented**. `resolvedRank`/`degraded`/`minScore`/`traceId`/`CompositeSink` are the forward-compatible seams.
@@ -624,7 +650,7 @@ The live code binds `invalidState = submitButton` and detects invalidity via but
 
 ## 10. Acceptance criteria (how Slice A is verified)
 
-1. `npm run lint` passes, including the new `no-restricted-imports` ban (no `@playwright/test` import resolves outside `packages/driver-playwright/**`).
+1. `npm run lint` passes — typed rules resolve under `parserOptions.projectService: true` (the references-only root tsconfig includes no files), and the new `no-restricted-imports` ban reports no `@playwright/test` import outside `packages/driver-playwright/**` and the test-runner exemption.
 2. `tsc -b` (project references) type-checks all packages + the example under `strict` + `noUncheckedIndexedAccess`.
 3. `npm test` (Playwright, `examples/web-erpnext`) passes: the invalid-credentials spec asserts the nested `business-failure` / `INVALID_CREDENTIALS` / truthy `message`; the admin-login spec passes via the fixture.
 4. A run writes `test-results/telemetry/<runId>.jsonl`; a `@sentinel/core` unit test asserts `InMemorySink` captured `locator.resolved` (with `resolvedRank`/`candidates`), `assertion`, `flow.finished`, and on the invalid path `business.failure` with `domainReason:"INVALID_CREDENTIALS"`; and that `JsonlSink` round-trips bigint timing fields.
@@ -638,3 +664,16 @@ The live code binds `invalidState = submitButton` and detects invalidity via but
 1. **R-1 (signature):** keep `logIn(page, …)` (page-wrap) as specified, or also expose/prefer `logIn(session, …)`?
 2. **Example app home:** `examples/web-erpnext` as the migrated-slice workspace (matches the README) — accept, or prefer `apps/` / keeping tests at repo root?
 3. **JSONL path:** `test-results/telemetry/<runId>.jsonl` acceptable, or a different location (e.g. a git-ignored `.sentinel/`)?
+4. **Playwright loader tsconfig (validate at build time):** which tsconfig Playwright's esbuild loader reads for *transitively-imported* `packages/**` files (outside `examples/web-erpnext`) is genuinely uncertain — it may pick a package tsconfig lacking the `@sentinel/*` paths. Likely fix is `build: { tsconfig: '<the tsconfig that declares the paths>' }` in `playwright.config.ts`, but the implementer must confirm empirically (a spec importing `@sentinel/core` **and** a `driver-playwright` file importing `@sentinel/contracts` both resolving at test time) rather than asserting it here.
+
+---
+
+## 12. Ordered implementation sub-steps (non-normative)
+
+Slice A bundles five independently-riskful workstreams; the implementation plan should sequence them so each is verifiable before the next, each gated on its §10 acceptance subset:
+
+1. **S1 — Monorepo move + tooling.** Create the workspace, `tsconfig.base.json` (+ explicit `paths`), per-package tsconfigs, the ESLint flat-config ban + `projectService` switch, the `.gitignore` additions, and move the Playwright config. Acceptance: `tsc -b` and `lint` green on an empty-but-wired tree; existing tests still run from their new home (before the contract migration).
+2. **S2 — `@sentinel/contracts` + `@sentinel/core` types.** Contracts, Result model, error taxonomy, telemetry event/sink model (incl. `SpanContext`, `InMemorySink`, `NoopSink`, `CompositeSink`, `JsonlSink` with bigint replacer), locator engine interfaces + `StrategyRegistry`. Acceptance: §10.2 type-check + core unit tests for sinks/result factories (no driver yet).
+3. **S3 — `@sentinel/driver-playwright`.** Driver/session/action/assertion/resolver/strategy-compiler/element, including the four §7 obligations (esp. `waitForFirstOf` race + loser-cancellation and the resolve→`locator.resolved` emit). Acceptance: §10.5 (race throws on no-winner) + a resolver emit test.
+4. **S4 — Auth-slice migration.** Locators, `LogInForm`/`AppShell` on `Session`, the folded flow, the rich `LoginResult`, the `logIn(page,…)` page-wrap. Acceptance: defects D1–D5 fixed.
+5. **S5 — Spec edits + telemetry assertions green.** Edit the two specs/fixtures to the nested shape; assert `InMemorySink` events + `JsonlSink` round-trip. Acceptance: full §10 (1–6).
