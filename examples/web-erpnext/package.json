@@ -1,0 +1,14 @@
+{
+  "name": "@sentinel/example-web-erpnext",
+  "version": "0.0.0",
+  "private": true,
+  "dependencies": {
+    "@sentinel/contracts": "*",
+    "@sentinel/core": "*",
+    "@sentinel/driver-playwright": "*",
+    "dotenv": "^17.3.1"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.58.2"
+  }
+}
