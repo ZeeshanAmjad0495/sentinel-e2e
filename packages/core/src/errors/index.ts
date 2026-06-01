@@ -5,3 +5,12 @@ export {
   type SystemFailureContext,
   type Artifact,
 } from "./system-failure-error";
+export {
+  TimeoutError,
+  SelectorNotFoundError,
+  SelectorAmbiguousError,
+  DriverSessionError,
+  AssertionInfrastructureError,
+  CapabilityUnsupportedError,
+  isSystemFailure,
+} from "./kinds";
