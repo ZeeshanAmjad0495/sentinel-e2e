@@ -38,4 +38,9 @@ export class PlaywrightElementHandle implements ElementHandle {
   async attribute(name: string): Promise<string | null> {
     return this.compile().getAttribute(name);
   }
+
+  /** The winning candidate recompiled into a fresh Playwright Locator (auto-wait actionability). */
+  compileWinner(): PwLocator {
+    return this.compile();
+  }
 }
