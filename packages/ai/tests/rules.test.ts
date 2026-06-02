@@ -140,3 +140,44 @@ test("classify: selector-not-found system failure is selector-drift", () => {
   expect(c.verdicts.some((v) => v.kind === "real-bug")).toBe(false);
   expect(c.verdicts.some((v) => v.kind === "infra-flake")).toBe(false);
 });
+
+test("classify: rank-0 assertion mismatch with no prior retry is real-bug", () => {
+  const a = assertion({
+    name: "dashboard.greeting",
+    spanId: "span-assert",
+    matched: false,
+    locatorRank: 0,
+    state: "visible",
+  });
+  const events: TelemetryEvent[] = [
+    a,
+    flowFinished({ outcome: "system-failure" }),
+  ];
+
+  const c = classify(events);
+
+  const bug = c.verdicts.find((v) => v.kind === "real-bug");
+  expect(bug).toBeDefined();
+  expect(bug?.confidence).toBe(0.85);
+  expect(bug?.source).toBe("rule");
+  expect(bug?.evidence[0]?.eventId).toBe(a.eventId);
+});
+
+test("classify: a preceding retry on the same span suppresses real-bug", () => {
+  const r = retry({ spanId: "span-X", previousOutcome: "assertionFailed" });
+  const a = assertion({
+    name: "dashboard.greeting",
+    spanId: "span-X",
+    matched: false,
+    locatorRank: 0,
+  });
+  const events: TelemetryEvent[] = [
+    r,
+    a,
+    flowFinished({ outcome: "system-failure" }),
+  ];
+
+  const c = classify(events);
+
+  expect(c.verdicts.some((v) => v.kind === "real-bug")).toBe(false);
+});

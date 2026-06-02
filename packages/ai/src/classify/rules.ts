@@ -4,6 +4,8 @@ import type {
   LocatorResolvedEvent,
   FlowFinishedEvent,
   SystemFailureEvent,
+  AssertionEvent,
+  RetryEvent,
 } from "@sentinel/core";
 import type { RunClassification, RunOutcome } from "../analysis";
 import type { Verdict, Evidence } from "../verdict";
@@ -53,6 +55,27 @@ function failureEvidence(e: SystemFailureEvent): Evidence {
   };
 }
 
+function hasPrecedingRetry(
+  events: readonly TelemetryEvent[],
+  index: number,
+  spanId: string,
+): boolean {
+  for (let i = 0; i < index; i++) {
+    const e = events[i];
+    if (e && isType(e, "retry") && e.spanId === spanId) return true;
+  }
+  return false;
+}
+
+function assertionEvidence(e: AssertionEvent): Evidence {
+  return {
+    eventId: e.eventId,
+    type: e.type,
+    detail: `'${e.name}' never reached state '${e.state}' (most-durable locator rank 0)`,
+    fields: { state: e.state, matched: e.matched, locatorRank: e.locatorRank },
+  };
+}
+
 /** Pure deterministic classifier. No I/O, no API. Implements spec §4. */
 export function classify(events: readonly TelemetryEvent[]): RunClassification {
   const runId = events[0]?.traceId ?? "";
@@ -97,6 +120,21 @@ export function classify(events: readonly TelemetryEvent[]): RunClassification {
       source: "rule",
     });
   }
+
+  // §4.3 — rank-0 assertion mismatch with no preceding retry → real-bug
+  events.forEach((e, i) => {
+    if (!isType(e, "assertion")) return;
+    if (e.matched || e.locatorRank !== 0) return;
+    if (hasPrecedingRetry(events, i, e.spanId)) return;
+    verdicts.push({
+      kind: "real-bug",
+      confidence: 0.85,
+      summary: `Assertion '${e.name}' failed with a stable rank-0 locator`,
+      evidence: [assertionEvidence(e)],
+      logicalName: e.name,
+      source: "rule",
+    });
+  });
 
   // §4.6 — healthy: success with no defects (coexists with drift warnings)
   const hasDefect = verdicts.some(
