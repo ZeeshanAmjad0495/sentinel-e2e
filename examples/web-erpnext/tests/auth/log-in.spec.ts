@@ -13,8 +13,11 @@ test.describe("auth: logIn", () => {
       password: `${adminCredentials.password}.invalid`,
     });
 
-    expect(result.success).toBe(false);
-    expect(result.errorMessage).toBeTruthy();
+    expect(result.status).toBe("business-failure");
+    if (result.status === "business-failure") {
+      expect(result.reason).toBe("INVALID_CREDENTIALS");
+      expect(result.message).toBeTruthy(); // localized text still surfaced for humans
+    }
   });
 
   test("loginAsAdmin fixture logs in successfully", async ({
