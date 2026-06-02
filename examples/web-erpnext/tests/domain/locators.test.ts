@@ -25,14 +25,16 @@ test("css fallbacks stay byte-identical to migrated selectors", () => {
   );
 });
 
-test("invalid locator leads with structural .invalid candidate, button second (D-3)", () => {
+test("invalid locator leads with structural .invalid candidate, invalid-message text second (D-3)", () => {
   const [first, second] = loginLocators.invalid.candidates;
   expect(first?.kind).toBe("css");
   expect(first?.value).toBe(
     ".page-card-body.invalid .btn-login[type='submit']",
   );
-  expect(second?.kind).toBe("css");
-  expect(second?.value).toBe("button.btn-login[type='submit']");
+  // Candidate 2 must signal the invalid STATE, not the always-present bare submit
+  // button (the bare-button match made INVALID win a successful login's race).
+  expect(second?.kind).toBe("text");
+  expect(second?.value).toBe("Invalid Login. Try again.");
 });
 
 test("appShell.ready is the driver-neutral success signal", () => {

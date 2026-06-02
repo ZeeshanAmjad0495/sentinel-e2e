@@ -36,10 +36,16 @@ export const loginLocators = {
     { kind: "role", value: "button", options: { name: "Login" } },
     { kind: "css", value: "button.btn-login[type='submit']" },
   ]),
-  // INVALID detection (D-3): structural .invalid candidate FIRST, button-text source SECOND.
+  // INVALID detection (D-3): structural .invalid candidate FIRST, invalid-message TEXT fallback SECOND.
   invalid: defineLocator("auth.login.invalidState", [
     { kind: "css", value: ".page-card-body.invalid .btn-login[type='submit']" }, // structural (enum INVALID_STATE)
-    { kind: "css", value: "button.btn-login[type='submit']" }, // today's text source, retained
+    // Candidate 2 MUST match the invalid STATE, not the always-present submit button.
+    // The previous `button.btn-login[type='submit']` matched the BARE button, which is
+    // visible on every login form — so INVALID won the race during a SUCCESSFUL login's
+    // redirect window (before div.desktop-wrapper appeared), wrongly yielding
+    // business-failure. A text match on the invalid message only resolves when the app
+    // actually surfaces the failure, so it never fires on a successful login.
+    { kind: "text", value: "Invalid Login. Try again." },
   ]),
 } satisfies Record<string, Locator>;
 
