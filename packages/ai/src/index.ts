@@ -7,3 +7,4 @@ export type {
   TelemetryEvent,
 } from "./analysis";
 export { loadEvents } from "./load";
+export { redactEvents } from "./redact";
