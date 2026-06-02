@@ -319,3 +319,58 @@ test("classify: clean success with no degradation is purely healthy", () => {
   expect(c.verdicts[0]?.confidence).toBe(1.0);
   expect(c.indeterminate.length).toBe(0);
 });
+
+test("classify: auth-invalid run yields business-outcome + two drift verdicts", () => {
+  const u = locatorResolved({
+    logicalName: "auth.login.username",
+    resolvedKind: "css",
+    resolvedRank: 6,
+    degraded: true,
+    candidates: [
+      { kind: "label", outcome: "missed", rank: 0 },
+      { kind: "css", outcome: "matched", rank: 6 },
+    ],
+  });
+  const p = locatorResolved({
+    logicalName: "auth.login.password",
+    resolvedKind: "css",
+    resolvedRank: 6,
+    degraded: true,
+    candidates: [
+      { kind: "label", outcome: "missed", rank: 0 },
+      { kind: "css", outcome: "matched", rank: 6 },
+    ],
+  });
+  const bf = businessFailure({
+    name: "auth.login",
+    domainReason: "INVALID_CREDENTIALS",
+  });
+  const events: TelemetryEvent[] = [
+    u,
+    p,
+    bf,
+    flowFinished({
+      outcome: "business-failure",
+      terminalReason: "INVALID_CREDENTIALS",
+      didDegrade: true,
+    }),
+  ];
+
+  const c = classify(events);
+
+  expect(c.outcome).toBe("business-failure");
+  expect(c.degraded).toBe(true);
+  const kinds = c.verdicts.map((v) => v.kind).sort();
+  expect(kinds).toEqual([
+    "business-outcome",
+    "selector-drift",
+    "selector-drift",
+  ]);
+  const driftNames = c.verdicts
+    .filter((v) => v.kind === "selector-drift")
+    .map((v) => v.logicalName)
+    .sort();
+  expect(driftNames).toEqual(["auth.login.password", "auth.login.username"]);
+  expect(c.verdicts.some((v) => v.kind === "healthy")).toBe(false);
+  expect(c.indeterminate.length).toBe(0);
+});
