@@ -73,6 +73,36 @@ test("loadEvents throws when no valid events are present", () => {
   });
 });
 
+test("loadEvents warns on an unknown schemaVersion major but returns the event", () => {
+  const warnings: string[] = [];
+  const original = console.warn;
+  console.warn = (...args: unknown[]): void => {
+    warnings.push(args.map(String).join(" "));
+  };
+  try {
+    const skewed = JSON.stringify({
+      schemaVersion: "9.0.0",
+      eventId: randomUUID(),
+      type: "component.action",
+      traceId: "run-1",
+      spanId: "s",
+      sequence: 0,
+      name: "future",
+      timing: { startWallClockMs: 1, startMonotonicNs: "1" },
+    });
+    withTmpFile(`${skewed}\n`, (path) => {
+      const events = loadEvents(path); // best-effort, no throw
+      expect(events).toHaveLength(1);
+      expect(events[0]?.name).toBe("future");
+    });
+    expect(warnings.some((w) => /schemaVersion|skew|unknown/i.test(w))).toBe(
+      true,
+    );
+  } finally {
+    console.warn = original;
+  }
+});
+
 test("loadEvents accepts an in-memory event array unchanged", () => {
   withTmpFile(`${line("first", 0)}\n`, (path) => {
     const [evt] = loadEvents(path);
