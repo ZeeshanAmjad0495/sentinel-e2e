@@ -11,20 +11,20 @@
 
 These four decisions were taken at the design-approval gate and govern this spec. Where they diverge from the workflow's recommended defaults, that is intentional.
 
-| # | Decision | Effect |
-|---|---|---|
-| D-1 | **Full monorepo move now** | `domain` / `flows` / `components` / `config` + tests move into an `examples/web-erpnext` workspace this slice (not deferred). |
+| #   | Decision                               | Effect                                                                                                                                                                                                   |
+| --- | -------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| D-1 | **Full monorepo move now**             | `domain` / `flows` / `components` / `config` + tests move into an `examples/web-erpnext` workspace this slice (not deferred).                                                                            |
 | D-2 | **Specs migrate to the nested result** | The flat `LoginResult` projection is dropped. The flow returns the rich discriminated-union `Result`; `log-in.spec.ts` and `fixtures/auth.ts` are edited to read `result.status` / `reason` / `message`. |
-| D-3 | **Dual-candidate `.invalid` fallback** | The `invalid` locator leads with the structural `.page-card-body.invalid …` candidate and retains the submit-button candidate second. No live-app verification required this slice. |
-| D-4 | **`JsonlSink` ships now** | `CompositeSink([InMemorySink, JsonlSink])` is wired in the example session; JSONL telemetry is written to disk per run for analyzer experiments. |
+| D-3 | **Dual-candidate `.invalid` fallback** | The `invalid` locator leads with the structural `.page-card-body.invalid …` candidate and retains the submit-button candidate second. No live-app verification required this slice.                      |
+| D-4 | **`JsonlSink` ships now**              | `CompositeSink([InMemorySink, JsonlSink])` is wired in the example session; JSONL telemetry is written to disk per run for analyzer experiments.                                                         |
 
-**Open interpretation flagged for review (R-1):** D-2 rejected the *flat result projection*, not the *call signature*. This spec keeps `logIn(page, credentials, opts)` and wraps the `Page` internally, so fixtures still call `logIn(page, …)`. If you also want a `logIn(session, …)` primary signature, say so at the spec-review gate.
+**Open interpretation flagged for review (R-1):** D-2 rejected the _flat result projection_, not the _call signature_. This spec keeps `logIn(page, credentials, opts)` and wraps the `Page` internally, so fixtures still call `logIn(page, …)`. If you also want a `logIn(session, …)` primary signature, say so at the spec-review gate.
 
 ---
 
 ## 1. Overview & design principles
 
-Sentinel produces a clean, structured, domain-level **telemetry record** of everything an automation run did; AI reasons over that record (explain runs; classify each failure as real-bug / infra-flake / selector-drift). Tool-agnosticism is a *consequence* of three honest plugin seams — **driver registry**, **locator-strategy registry**, **telemetry sinks** — not the headline.
+Sentinel produces a clean, structured, domain-level **telemetry record** of everything an automation run did; AI reasons over that record (explain runs; classify each failure as real-bug / infra-flake / selector-drift). Tool-agnosticism is a _consequence_ of three honest plugin seams — **driver registry**, **locator-strategy registry**, **telemetry sinks** — not the headline.
 
 Five principles govern every decision:
 
@@ -92,6 +92,7 @@ sentinel-e2e/                              # workspace root
   ```
 
   Each package's `tsconfig.json` extends the base with `composite: true` and `references` to its dependencies (`core` → `contracts`; `driver-playwright` → `contracts` + `core`; `example` → all three).
+
 - **Boundary enforcement:** an ESLint `no-restricted-imports` rule bans `@playwright/test` (and `playwright`) everywhere except `packages/driver-playwright/**` **and the example's test-runner files** (`examples/web-erpnext/tests/**` specs + `_support/fixtures/**`, which legitimately need Playwright's test runner). The ban targets app/flow/component code, not the spec runner; the boundary becomes a lint failure, not a convention. In flat config this is two ordered entries: a global `{ files: ['**/*.ts'], rules: { 'no-restricted-imports': ['error', { paths: ['@playwright/test','playwright'] }] } }`, then a later `{ files: ['packages/driver-playwright/**/*.ts','examples/web-erpnext/tests/**'], rules: { 'no-restricted-imports': 'off' } }` (last match wins).
 - **Typed-lint transition:** the root `tsconfig.json` becomes references-only and includes no files, so the ESLint typed parser is switched from `parserOptions.project: './tsconfig.json'` to `parserOptions.projectService: true` (typescript-eslint v8); otherwise `no-floating-promises`/`no-misused-promises`/`await-thenable` fail to resolve on every `packages/**` and `examples/**` file.
 - **VCS + resolution hygiene:** this slice adds `test-results/` and `playwright-report/` to `.gitignore` (currently absent — only the ESLint/Prettier ignore lists mention them, which do not affect VCS). `@sentinel/*` resolves **exclusively via tsconfig `paths` → `src`**; package `main`/`exports` are omitted (or point at `src/index.ts`) until the deferred publication slice, to avoid a half-true `dist` entry that fails outside the Playwright/tsc loaders.
@@ -108,11 +109,11 @@ Driver-agnostic, zero runtime deps. Components and flows import **only** these.
 ```ts
 // capability.ts
 export type Capability =
-  | "navigation"        // URL + back/forward .......... web / mobile-webview
-  | "dom"               // a document tree ............. web
+  | "navigation" // URL + back/forward .......... web / mobile-webview
+  | "dom" // a document tree ............. web
   | "accessibilityTree" // getByRole semantics ......... web
-  | "gestures"          // swipe/scroll/pinch/long-press  mobile-native
-  | "contexts"          // NATIVE_APP <-> WEBVIEW ....... mobile
+  | "gestures" // swipe/scroll/pinch/long-press  mobile-native
+  | "contexts" // NATIVE_APP <-> WEBVIEW ....... mobile
   | "screenshot"
   | "networkInspection";
 
@@ -133,15 +134,15 @@ export type StrategyKind = string; // "role" | "label" | "text" | "testid" | "cs
 
 export interface LocatorStrategy {
   readonly kind: StrategyKind;
-  readonly value: string;                                   // role name / testid / css / predicate
+  readonly value: string; // role name / testid / css / predicate
   readonly options?: Readonly<Record<string, string | number | boolean>>; // strategy-scoped; {name,exact} only meaningful to role/label
 }
 
 export interface Locator {
-  readonly logicalName: string;                    // STABLE id, "auth.login.submit" — the drift anchor
+  readonly logicalName: string; // STABLE id, "auth.login.submit" — the drift anchor
   readonly candidates: readonly LocatorStrategy[]; // ordered most-durable -> css/xpath fallback
-  readonly minScore?: number;                      // accept threshold; default 1.0 in Slice A (binary)
-  within(parent: Locator): Locator;                // scoping/chaining
+  readonly minScore?: number; // accept threshold; default 1.0 in Slice A (binary)
+  within(parent: Locator): Locator; // scoping/chaining
 }
 ```
 
@@ -166,7 +167,7 @@ export interface ElementHandle {
 // action.ts
 export type GestureTarget =
   | { readonly kind: "element"; readonly locator: Locator }
-  | { readonly kind: "point";   readonly x: number; readonly y: number }
+  | { readonly kind: "point"; readonly x: number; readonly y: number }
   | { readonly kind: "percent"; readonly xPct: number; readonly yPct: number };
 ```
 
@@ -182,7 +183,11 @@ export interface Action {
   read(target: Locator): Promise<string>;
 
   // capability "gestures" (mobile-native) — absent => CapabilityUnsupportedError.
-  swipe?(from: GestureTarget, dir: "up" | "down" | "left" | "right", opts?: { velocity?: number }): Promise<void>;
+  swipe?(
+    from: GestureTarget,
+    dir: "up" | "down" | "left" | "right",
+    opts?: { velocity?: number },
+  ): Promise<void>;
   longPress?(target: GestureTarget, ms?: number): Promise<void>;
   scrollTo?(target: Locator): Promise<void>;
 }
@@ -194,22 +199,35 @@ The second-web-driver lens forces the biggest contract change: **no flow-orchest
 
 ```ts
 // assertion.ts
-export type ElementState = "attached" | "detached" | "visible" | "hidden" | "enabled";
+export type ElementState =
+  | "attached"
+  | "detached"
+  | "visible"
+  | "hidden"
+  | "enabled";
 
 export interface BranchProgress<L extends string = string> {
   readonly label: L;
   readonly reachedState: ElementState | "none"; // closest state observed before timeout
-  readonly resolvedRank: number | null;          // locator rank that matched, or null if unresolved
+  readonly resolvedRank: number | null; // locator rank that matched, or null if unresolved
 }
 
 export interface Assertion {
   /** Resolves on success; THROWS TimeoutError (with timings + artifacts) on timeout. NEVER returns on timeout. */
-  waitFor(target: Locator, state: ElementState, opts?: { timeoutMs?: number }): Promise<void>;
+  waitFor(
+    target: Locator,
+    state: ElementState,
+    opts?: { timeoutMs?: number },
+  ): Promise<void>;
 
   /** Driver-owned race. Returns the winning label. On no winner, throws TimeoutError whose context
    *  carries per-branch BranchProgress[]. The driver OWNS loser-cancellation (no unhandled rejections). */
   waitForFirstOf<L extends string>(
-    conditions: ReadonlyArray<{ label: L; target: Locator; state: ElementState }>,
+    conditions: ReadonlyArray<{
+      label: L;
+      target: Locator;
+      state: ElementState;
+    }>,
     opts?: { timeoutMs?: number },
   ): Promise<L>;
 }
@@ -220,7 +238,7 @@ export interface Assertion {
 ```ts
 // session.ts
 export interface Session extends CapabilityProbe {
-  readonly id: string;                          // == telemetry traceId == ResultMeta.correlationId
+  readonly id: string; // == telemetry traceId == ResultMeta.correlationId
   readonly driver: string;
   readonly capabilities: ReadonlySet<Capability>;
   readonly telemetry: TelemetrySink;
@@ -238,21 +256,24 @@ export interface Session extends CapabilityProbe {
   contexts?(): Promise<readonly string[]>;
   switchContext?(name: string): Promise<void>;
 
-  screenshot?(): Promise<Buffer>;               // capability "screenshot"
+  screenshot?(): Promise<Buffer>; // capability "screenshot"
   end(): Promise<void>;
 }
 
 // driver.ts
 export interface Driver {
-  readonly name: string;                          // "playwright" | "appium-uiautomator2"
+  readonly name: string; // "playwright" | "appium-uiautomator2"
   readonly capabilities: ReadonlySet<Capability>;
   readonly strategies: ReadonlySet<StrategyKind>; // which locator kinds this driver can compile
-  createSession(config: SessionConfig, telemetry: TelemetrySink): Promise<Session>;
+  createSession(
+    config: SessionConfig,
+    telemetry: TelemetrySink,
+  ): Promise<Session>;
 }
 
 export interface SessionConfig {
-  readonly baseUrl?: string;          // OPTIONAL: ignored on the page-wrap path (test owns page.goto)
-  readonly defaultTimeoutMs: number;  // single timeout source of truth (replaces 10_000 literals)
+  readonly baseUrl?: string; // OPTIONAL: ignored on the page-wrap path (test owns page.goto)
+  readonly defaultTimeoutMs: number; // single timeout source of truth (replaces 10_000 literals)
   /** Slice-A only: wrap a pre-navigated Playwright Page so logIn(page,...) stays working. */
   readonly existingPage?: unknown;
 }
@@ -264,17 +285,17 @@ export interface SessionConfig {
 
 ### 3.8 Explicitly EXCLUDED from core
 
-| Concept | Why excluded | Where it lives instead |
-|---|---|---|
-| `Page` / `BrowserContext` / `Browser` Playwright nouns | tool-specific | inside `@sentinel/driver-playwright`, behind `Session` |
-| Raw CSS string as *the* locator | absent in native | a `LocatorStrategy{kind:"css"}` the web driver compiles |
-| `getByRole` / accessibility semantics as a method | web-only | gated `accessibilityTree`; strategy `kind:"role"` |
-| `url` / `finalUrl` / `currentUrl` as a **required** field | web/webview-only | `currentUrl?` gated `navigation`; in results an **optional artifact** |
-| `back` / history, `waitForFunction(window.location…)` | browser-only | gated `navigation`; dead `waitForSuccessSignal` deleted |
-| Gestures, `NATIVE_APP↔WEBVIEW` switching | mobile-only | optional gated methods on `Action`/`Session` |
-| `ElementHandle` as a *stateful, cached* object | stale-handle bug class | re-resolved per call from the `Locator` description |
-| `screenshot` / `har` as a public success-path API | not used by auth slice | failure-path artifact capture + gated `screenshot?` |
-| Fuzzy/Healenium scoring, `relative` strategy impl, multiremote | speculative | declared in type space (`minScore`, open `StrategyKind`) so non-retrofit; unimplemented |
+| Concept                                                        | Why excluded           | Where it lives instead                                                                  |
+| -------------------------------------------------------------- | ---------------------- | --------------------------------------------------------------------------------------- |
+| `Page` / `BrowserContext` / `Browser` Playwright nouns         | tool-specific          | inside `@sentinel/driver-playwright`, behind `Session`                                  |
+| Raw CSS string as _the_ locator                                | absent in native       | a `LocatorStrategy{kind:"css"}` the web driver compiles                                 |
+| `getByRole` / accessibility semantics as a method              | web-only               | gated `accessibilityTree`; strategy `kind:"role"`                                       |
+| `url` / `finalUrl` / `currentUrl` as a **required** field      | web/webview-only       | `currentUrl?` gated `navigation`; in results an **optional artifact**                   |
+| `back` / history, `waitForFunction(window.location…)`          | browser-only           | gated `navigation`; dead `waitForSuccessSignal` deleted                                 |
+| Gestures, `NATIVE_APP↔WEBVIEW` switching                       | mobile-only            | optional gated methods on `Action`/`Session`                                            |
+| `ElementHandle` as a _stateful, cached_ object                 | stale-handle bug class | re-resolved per call from the `Locator` description                                     |
+| `screenshot` / `har` as a public success-path API              | not used by auth slice | failure-path artifact capture + gated `screenshot?`                                     |
+| Fuzzy/Healenium scoring, `relative` strategy impl, multiremote | speculative            | declared in type space (`minScore`, open `StrategyKind`) so non-retrofit; unimplemented |
 
 Calling any gated method on an unsupporting driver throws the typed `CapabilityUnsupportedError` — "unsupported" stays inside the taxonomy and telemetry, never a raw `undefined is not a function` crash.
 
@@ -287,30 +308,52 @@ System failures are **thrown, never a `Result` variant**. A `Result` means "the 
 ```ts
 // result/result.ts
 export interface ResultMeta {
-  readonly correlationId: string;   // == Session.id == telemetry traceId — THE join key
-  readonly flowName: string;        // "auth.login" — domain intent
-  readonly startedAt: number;       // single canonical epoch ms at flow entry
+  readonly correlationId: string; // == Session.id == telemetry traceId — THE join key
+  readonly flowName: string; // "auth.login" — domain intent
+  readonly startedAt: number; // single canonical epoch ms at flow entry
   readonly durationMs: number;
   readonly artifacts?: Readonly<Record<string, string>>; // e.g. {traceRef} — OPTIONAL string refs (NOT finalUrl; see below)
 }
 
-export interface Success<T> { readonly status: "success"; readonly data: T; readonly meta: ResultMeta; }
+export interface Success<T> {
+  readonly status: "success";
+  readonly data: T;
+  readonly meta: ResultMeta;
+}
 export interface BusinessFailure<R extends string = string, D = unknown> {
   readonly status: "business-failure";
-  readonly reason: R;               // STABLE enum, "INVALID_CREDENTIALS" — NEVER the localized UI string
-  readonly message?: string;        // human/UI text (localized; display-only, never keyed on)
+  readonly reason: R; // STABLE enum, "INVALID_CREDENTIALS" — NEVER the localized UI string
+  readonly message?: string; // human/UI text (localized; display-only, never keyed on)
   readonly details?: D;
   readonly meta: ResultMeta;
 }
-export type Result<T, R extends string = string, D = unknown> = Success<T> | BusinessFailure<R, D>;
+export type Result<T, R extends string = string, D = unknown> =
+  | Success<T>
+  | BusinessFailure<R, D>;
 
 // result/factory.ts
-export const ok = <T>(data: T, meta: ResultMeta): Success<T> => ({ status: "success", data, meta });
+export const ok = <T>(data: T, meta: ResultMeta): Success<T> => ({
+  status: "success",
+  data,
+  meta,
+});
 export const businessFailure = <R extends string, D = unknown>(
-  reason: R, meta: ResultMeta, opts?: { message?: string; details?: D },
-): BusinessFailure<R, D> => ({ status: "business-failure", reason, message: opts?.message, details: opts?.details, meta });
-export const isSuccess = <T, R extends string, D>(r: Result<T, R, D>): r is Success<T> => r.status === "success";
-export const assertNever = (x: never): never => { throw new Error(`Unhandled Result variant: ${JSON.stringify(x)}`); };
+  reason: R,
+  meta: ResultMeta,
+  opts?: { message?: string; details?: D },
+): BusinessFailure<R, D> => ({
+  status: "business-failure",
+  reason,
+  message: opts?.message,
+  details: opts?.details,
+  meta,
+});
+export const isSuccess = <T, R extends string, D>(
+  r: Result<T, R, D>,
+): r is Success<T> => r.status === "success";
+export const assertNever = (x: never): never => {
+  throw new Error(`Unhandled Result variant: ${JSON.stringify(x)}`);
+};
 ```
 
 ### `LoginResult` is now the rich model (flat projection dropped)
@@ -319,11 +362,21 @@ export const assertNever = (x: never): never => { throw new Error(`Unhandled Res
 // examples/web-erpnext/src/domain/auth/log-in-result.ts
 import type { Result } from "@sentinel/core";
 
-export interface LoginSuccessData   { readonly username: string; readonly finalUrl?: string; }
-export type    LoginReason          = "INVALID_CREDENTIALS";          // stable, language-independent
-export interface LoginFailureDetails { readonly username: string; readonly finalUrl?: string; }
+export interface LoginSuccessData {
+  readonly username: string;
+  readonly finalUrl?: string;
+}
+export type LoginReason = "INVALID_CREDENTIALS"; // stable, language-independent
+export interface LoginFailureDetails {
+  readonly username: string;
+  readonly finalUrl?: string;
+}
 
-export type LoginResult = Result<LoginSuccessData, LoginReason, LoginFailureDetails>;
+export type LoginResult = Result<
+  LoginSuccessData,
+  LoginReason,
+  LoginFailureDetails
+>;
 ```
 
 There is **no `toFlatLoginResult`** and no flat interface. The flow returns `LoginResult` (the rich `Result`); the specs and fixtures read `status` / `reason` / `message` (see §8). `finalUrl` survives as a typed optional field on the success/details payload, populated only when `session.supports("navigation")`. Callers read `result.data.finalUrl` (success) / `result.details?.finalUrl` (failure) — `finalUrl` is a **typed payload field, not a `meta.artifacts` entry** (`Record<string,string>` cannot model an optional typed field, and `noUncheckedIndexedAccess` would widen it to `string | undefined`).
@@ -336,56 +389,80 @@ Only kinds a current call site produces, plus the gated-method guard. Base carri
 
 ```ts
 // errors/system-failure-error.ts
-import type { Capability, StrategyKind, BranchProgress } from "@sentinel/contracts";
+import type {
+  Capability,
+  StrategyKind,
+  BranchProgress,
+} from "@sentinel/contracts";
 
 export type SystemFailureKind =
-  | "timeout" | "selector-not-found" | "selector-ambiguous"
-  | "driver-session" | "assertion-infrastructure" | "capability-unsupported";
+  | "timeout"
+  | "selector-not-found"
+  | "selector-ambiguous"
+  | "driver-session"
+  | "assertion-infrastructure"
+  | "capability-unsupported";
 
 export interface Artifact {
-  readonly kind: "screenshot" | "dom-snapshot" | "a11y-snapshot" | "trace" | "console-log" | "har";
-  readonly ref?: string; readonly inline?: string;
+  readonly kind:
+    | "screenshot"
+    | "dom-snapshot"
+    | "a11y-snapshot"
+    | "trace"
+    | "console-log"
+    | "har";
+  readonly ref?: string;
+  readonly inline?: string;
 }
 
 export interface SystemFailureContext {
-  readonly correlationId: string;          // SAME id as ResultMeta + every telemetry event
+  readonly correlationId: string; // SAME id as ResultMeta + every telemetry event
   readonly flowName: string;
   readonly startedAt: number;
-  readonly durationMs: number;             // elapsed before failure
+  readonly durationMs: number; // elapsed before failure
   readonly artifacts?: readonly Artifact[];
-  readonly logicalName?: string;           // for selector-* kinds: which element
-  readonly attempted?: readonly { strategy: StrategyKind; matched: boolean; rank: number }[];
+  readonly logicalName?: string; // for selector-* kinds: which element
+  readonly attempted?: readonly {
+    strategy: StrategyKind;
+    matched: boolean;
+    rank: number;
+  }[];
   readonly branchProgress?: readonly BranchProgress[]; // for waitForFirstOf timeouts (disambiguation)
-  readonly capability?: Capability;        // for capability-unsupported
-  readonly cause?: unknown;                // raw driver error preserved
+  readonly capability?: Capability; // for capability-unsupported
+  readonly cause?: unknown; // raw driver error preserved
 }
 
 export abstract class SystemFailureError extends Error {
   abstract readonly kind: SystemFailureKind;
-  abstract readonly retryable: boolean;    // A-PRIORI flake HINT, not a verdict; analyzer refines via history
-  constructor(message: string, readonly context: SystemFailureContext) {
+  abstract readonly retryable: boolean; // A-PRIORI flake HINT, not a verdict; analyzer refines via history
+  constructor(
+    message: string,
+    readonly context: SystemFailureContext,
+  ) {
     super(message);
     this.name = new.target.name;
-    if (context.cause !== undefined) (this as { cause?: unknown }).cause = context.cause;
+    if (context.cause !== undefined)
+      (this as { cause?: unknown }).cause = context.cause;
     Error.captureStackTrace?.(this, new.target);
   }
 }
 ```
 
-| Class | `kind` | `retryable` | Carries / classifier signal |
-|---|---|---|---|
-| `TimeoutError` | `timeout` | **true** | timings + `branchProgress[]`; transient → lean infra-flake |
-| `SelectorNotFoundError` | `selector-not-found` | false | `logicalName` + `attempted[]`; deterministic → selector-drift |
-| `SelectorAmbiguousError` | `selector-ambiguous` | false | `logicalName` + match count; AI locator-fix candidate |
-| `DriverSessionError` | `driver-session` | **true** | `cause`; browser/context lost → infra-flake |
-| `AssertionInfrastructureError` | `assertion-infrastructure` | false | the *check itself* couldn't run (≠ a failed business assertion) |
-| `CapabilityUnsupportedError` | `capability-unsupported` | false | `capability`; thrown by `require(cap)` / gated-method calls |
+| Class                          | `kind`                     | `retryable` | Carries / classifier signal                                     |
+| ------------------------------ | -------------------------- | ----------- | --------------------------------------------------------------- |
+| `TimeoutError`                 | `timeout`                  | **true**    | timings + `branchProgress[]`; transient → lean infra-flake      |
+| `SelectorNotFoundError`        | `selector-not-found`       | false       | `logicalName` + `attempted[]`; deterministic → selector-drift   |
+| `SelectorAmbiguousError`       | `selector-ambiguous`       | false       | `logicalName` + match count; AI locator-fix candidate           |
+| `DriverSessionError`           | `driver-session`           | **true**    | `cause`; browser/context lost → infra-flake                     |
+| `AssertionInfrastructureError` | `assertion-infrastructure` | false       | the _check itself_ couldn't run (≠ a failed business assertion) |
+| `CapabilityUnsupportedError`   | `capability-unsupported`   | false       | `capability`; thrown by `require(cap)` / gated-method calls     |
 
 ```ts
-export const isSystemFailure = (e: unknown): e is SystemFailureError => e instanceof SystemFailureError;
+export const isSystemFailure = (e: unknown): e is SystemFailureError =>
+  e instanceof SystemFailureError;
 ```
 
-The load-bearing boundary: a failed *business* assertion (wrong password) is a `BusinessFailure` **result**; `AssertionInfrastructureError` is only when the checking *machinery* couldn't execute. Keeping these apart is what prevents false "real-bug" reports.
+The load-bearing boundary: a failed _business_ assertion (wrong password) is a `BusinessFailure` **result**; `AssertionInfrastructureError` is only when the checking _machinery_ couldn't execute. Keeping these apart is what prevents false "real-bug" reports.
 
 ---
 
@@ -398,25 +475,37 @@ JSON-first append-only stream, correlated by `correlationId` (= `Session.id`), o
 export const TELEMETRY_SCHEMA_VERSION = "1.0.0";
 
 export interface Timing {
-  startWallClockMs: number;     // Date.now() — cross-machine ordering
-  startMonotonicNs: bigint;     // process.hrtime.bigint() — duration source of truth
-  endMonotonicNs?: bigint; durationMs?: number;
+  startWallClockMs: number; // Date.now() — cross-machine ordering
+  startMonotonicNs: bigint; // process.hrtime.bigint() — duration source of truth
+  endMonotonicNs?: bigint;
+  durationMs?: number;
 }
 export type SpanStatus = "unset" | "ok" | "error";
 
 export type TelemetryEventType =
-  | "run.started" | "run.finished" | "flow.started" | "flow.finished"
-  | "component.action" | "locator.resolved" | "retry" | "assertion"
-  | "artifact.captured" | "business.failure" | "system.failure";
+  | "run.started"
+  | "run.finished"
+  | "flow.started"
+  | "flow.finished"
+  | "component.action"
+  | "locator.resolved"
+  | "retry"
+  | "assertion"
+  | "artifact.captured"
+  | "business.failure"
+  | "system.failure";
 
-export interface TelemetryEnvelope<T extends TelemetryEventType = TelemetryEventType> {
+export interface TelemetryEnvelope<
+  T extends TelemetryEventType = TelemetryEventType,
+> {
   schemaVersion: string;
-  eventId: string;                 // uuid
+  eventId: string; // uuid
   type: T;
-  traceId: string;                 // == correlationId == Session.id
-  spanId: string; parentSpanId?: string;
-  sequence: number;                // monotonic per run — total order without a span tree
-  name: string;                    // "auth.login" / "loginForm.submit"
+  traceId: string; // == correlationId == Session.id
+  spanId: string;
+  parentSpanId?: string;
+  sequence: number; // monotonic per run — total order without a span tree
+  name: string; // "auth.login" / "loginForm.submit"
   status?: SpanStatus;
   timing: Timing;
   attributes?: Readonly<Record<string, string | number | boolean>>;
@@ -425,52 +514,79 @@ export interface TelemetryEnvelope<T extends TelemetryEventType = TelemetryEvent
 
 ```ts
 // telemetry/signals.ts — classifier-critical payloads
-import type { StrategyKind, ElementState, BranchProgress } from "@sentinel/contracts";
+import type {
+  StrategyKind,
+  ElementState,
+  BranchProgress,
+} from "@sentinel/contracts";
 import type { Artifact, SystemFailureKind } from "../errors";
 export interface LocatorResolvedEvent extends TelemetryEnvelope<"locator.resolved"> {
   logicalName: string;
-  resolvedKind: StrategyKind; resolvedRank: number;          // >0 => SELECTOR-DRIFT
-  degraded: boolean;                                         // resolvedRank > 0
-  candidates: readonly { kind: StrategyKind; outcome: "matched" | "missed" | "skipped"; rank: number }[];
-  score: number; resolveDurationMs: number;
+  resolvedKind: StrategyKind;
+  resolvedRank: number; // >0 => SELECTOR-DRIFT
+  degraded: boolean; // resolvedRank > 0
+  candidates: readonly {
+    kind: StrategyKind;
+    outcome: "matched" | "missed" | "skipped";
+    rank: number;
+  }[];
+  score: number;
+  resolveDurationMs: number;
 }
 export interface AssertionEvent extends TelemetryEnvelope<"assertion"> {
-  state: ElementState; matched: boolean;
-  locatorRank: number;             // matched:false && rank===0 && no prior retry => REAL-BUG
-  branch?: string; branchProgress?: readonly BranchProgress[];
+  state: ElementState;
+  matched: boolean;
+  locatorRank: number; // matched:false && rank===0 && no prior retry => REAL-BUG
+  branch?: string;
+  branchProgress?: readonly BranchProgress[];
 }
 export interface RetryEvent extends TelemetryEnvelope<"retry"> {
-  attempt: number; maxAttempts: number; reason: string;
+  attempt: number;
+  maxAttempts: number;
+  reason: string;
   previousOutcome: "error" | "assertionFailed" | "timeout"; // retry-then-pass => INFRA-FLAKE
 }
 export interface BusinessFailureEvent extends TelemetryEnvelope<"business.failure"> {
-  status: "ok";                    // run mechanically succeeded; domain said no
-  domainReason: string;            // STABLE "INVALID_CREDENTIALS" — emitted independent of localized message
+  status: "ok"; // run mechanically succeeded; domain said no
+  domainReason: string; // STABLE "INVALID_CREDENTIALS" — emitted independent of localized message
 }
 export interface SystemFailureEvent extends TelemetryEnvelope<"system.failure"> {
-  status: "error"; errorKind: SystemFailureKind; message: string;
-  retryable: boolean; artifactRefs: readonly string[];
+  status: "error";
+  errorKind: SystemFailureKind;
+  message: string;
+  retryable: boolean;
+  artifactRefs: readonly string[];
 }
 export interface ArtifactCapturedEvent extends TelemetryEnvelope<"artifact.captured"> {
-  artifactKind: Artifact["kind"]; ref: string;
+  artifactKind: Artifact["kind"];
+  ref: string;
   capturedOn: "systemFailure" | "degradedResolution"; // attachable to NON-failing drifted runs too
 }
 export interface FlowFinishedEvent extends TelemetryEnvelope<"flow.finished"> {
   outcome: "success" | "business-failure" | "system-failure";
-  terminalReason?: string;         // domainReason or SystemFailureKind
-  didDegrade: boolean;             // true if ANY locator.resolved in the flow had resolvedRank>0
+  terminalReason?: string; // domainReason or SystemFailureKind
+  didDegrade: boolean; // true if ANY locator.resolved in the flow had resolvedRank>0
 }
 ```
 
 ```ts
 // telemetry/sink.ts
 export interface TelemetrySink {
-  emit(event: TelemetryEvent): void;       // sync, non-throwing; never breaks the run
-  child(name: string): TelemetrySink;      // opens a nested span (run -> flow -> action)
+  emit(event: TelemetryEvent): void; // sync, non-throwing; never breaks the run
+  child(name: string): TelemetrySink; // opens a nested span (run -> flow -> action)
 }
-export class InMemorySink implements TelemetrySink { readonly events: TelemetryEvent[] = []; /* ... */ }
-export class NoopSink implements TelemetrySink { emit(): void {} child() { return this; } }
-export class CompositeSink implements TelemetrySink { /* fan-out — SEAM 3 */ }
+export class InMemorySink implements TelemetrySink {
+  readonly events: TelemetryEvent[] = []; /* ... */
+}
+export class NoopSink implements TelemetrySink {
+  emit(): void {}
+  child() {
+    return this;
+  }
+}
+export class CompositeSink implements TelemetrySink {
+  /* fan-out — SEAM 3 */
+}
 ```
 
 **Span/sequence model (specified, not placeholder).** A single per-run `SpanContext` — created at `createSession` and threaded to every sink — owns the monotonic `sequence` counter, generates `spanId` per span, and sets `parentSpanId` on `child()`; sinks do **not** each own counters. `InMemorySink.events` is the flat, append-order array the unit test reads (`emit` pushes, `child` returns a sink writing to the same array under a new span name). `CompositeSink(members: TelemetrySink[])` fans `emit` to every member and returns a `CompositeSink` over each member's `child(name)`. `NoopSink` is the default when no sink is supplied.
@@ -479,7 +595,9 @@ export class CompositeSink implements TelemetrySink { /* fan-out — SEAM 3 */ }
 
 ```ts
 // telemetry/jsonl-sink.ts
-export interface JsonlSinkOptions { readonly filePath: string; }
+export interface JsonlSinkOptions {
+  readonly filePath: string;
+}
 export class JsonlSink implements TelemetrySink {
   // Appends one JSON object per line. MUST serialize bigint timing fields:
   //   JSON.stringify(event, (_k, v) => typeof v === "bigint" ? v.toString() : v)
@@ -493,11 +611,11 @@ export class JsonlSink implements TelemetrySink {
 
 ### The classifier's three signals — derivable from envelope fields alone
 
-| Verdict | Decisive fields | Contract that guarantees it |
-|---|---|---|
-| **selector-drift** | `locator.resolved` `resolvedRank>0` / `degraded:true`, or `candidates[]` primary `missed` → fallback `matched`; or `SelectorNotFoundError.attempted[]` | resolve **must** emit before any action returns |
-| **real-bug** | `assertion` `matched:false` while `locatorRank===0` and no prior `retry`; or on the login race, `branchProgress` showing app-shell `attached`-not-`visible` after valid creds | `AssertionEvent.locatorRank` + `branchProgress` on the race |
-| **infra-flake** | `retry` then passing terminal; `system.failure` `retryable:true`; no rank-0 `assertion matched:false` | `retryable` hint + cross-run join (§9) |
+| Verdict            | Decisive fields                                                                                                                                                               | Contract that guarantees it                                 |
+| ------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------- |
+| **selector-drift** | `locator.resolved` `resolvedRank>0` / `degraded:true`, or `candidates[]` primary `missed` → fallback `matched`; or `SelectorNotFoundError.attempted[]`                        | resolve **must** emit before any action returns             |
+| **real-bug**       | `assertion` `matched:false` while `locatorRank===0` and no prior `retry`; or on the login race, `branchProgress` showing app-shell `attached`-not-`visible` after valid creds | `AssertionEvent.locatorRank` + `branchProgress` on the race |
+| **infra-flake**    | `retry` then passing terminal; `system.failure` `retryable:true`; no rank-0 `assertion matched:false`                                                                         | `retryable` hint + cross-run join (§9)                      |
 
 **Emission is structural.** The Playwright `Action` / `Assertion` / resolver are constructed with the sink + span context. Every `Action` method takes a `Locator`, so the only path to acting runs through `resolve()`, which **must** emit `locator.resolved` before returning a handle. `waitFor` / `waitForFirstOf` emit `assertion` (and on timeout, `system.failure` + `artifact.captured`, then throw). The flow emits `flow.started` / `flow.finished` (with the `didDegrade` rollup) and, on a business failure, `business.failure` carrying the **stable `domainReason`** independent of the localized message. Native non-locator actions (coordinate gestures) emit `component.action` directly. **Versioning:** `schemaVersion` on every envelope; MAJOR=breaking, MINOR=additive/new event types (readers must not throw on unknown `type`), PATCH=docs.
 
@@ -511,36 +629,43 @@ A `Locator` is a prioritized candidate list (most-durable first, css/xpath as th
 
 ```ts
 // locator/strategy-registry.ts
-export interface StrategyMeta { readonly rank: number; }            // lower = more durable
+export interface StrategyMeta {
+  readonly rank: number;
+} // lower = more durable
 export class StrategyRegistry {
   register(kind: StrategyKind, meta: StrategyMeta): void;
   rankOf(kind: StrategyKind): number;
 }
 ```
 
-| Rank | kind | Playwright compile | Native (later) |
-|---|---|---|---|
-| 0 | `role` | `getByRole(value,{name,exact})` | gated `accessibilityTree` |
-| 1 | `label` | `getByLabel(value)` | accessibility id |
-| 2 | `text` | `getByText(value,{exact})` | `-android uiautomator` text |
-| 3 | `placeholder`/`altText`/`title` | situational getters | — |
-| 4 | `testid` | `getByTestId(value)` | accessibility id |
-| 5 | `relative` *(declared, unimpl.)* | `:near` | UiSelector relative |
-| 6 | `css` / `xpath` | `locator(value)` | xpath (discouraged) — **migration bottom rung** |
+| Rank | kind                             | Playwright compile              | Native (later)                                  |
+| ---- | -------------------------------- | ------------------------------- | ----------------------------------------------- |
+| 0    | `role`                           | `getByRole(value,{name,exact})` | gated `accessibilityTree`                       |
+| 1    | `label`                          | `getByLabel(value)`             | accessibility id                                |
+| 2    | `text`                           | `getByText(value,{exact})`      | `-android uiautomator` text                     |
+| 3    | `placeholder`/`altText`/`title`  | situational getters             | —                                               |
+| 4    | `testid`                         | `getByTestId(value)`            | accessibility id                                |
+| 5    | `relative` _(declared, unimpl.)_ | `:near`                         | UiSelector relative                             |
+| 6    | `css` / `xpath`                  | `locator(value)`                | xpath (discouraged) — **migration bottom rung** |
 
 ### Resolution algorithm (driver-honest)
 
 ```ts
 // locator/engine.ts
 export interface LocatorResolution {
-  handle: ElementHandle; resolvedKind: StrategyKind; resolvedRank: number;
-  degraded: boolean; score: number;
+  handle: ElementHandle;
+  resolvedKind: StrategyKind;
+  resolvedRank: number;
+  degraded: boolean;
+  score: number;
 }
-export interface LocatorResolver { resolve(locator: Locator): Promise<LocatorResolution>; }
+export interface LocatorResolver {
+  resolve(locator: Locator): Promise<LocatorResolution>;
+}
 ```
 
 1. Iterate `candidates` in order. **If a candidate's `kind` is not in `driver.strategies`, SKIP it** (record `outcome:"skipped"`, do not fail) — a css-only Selenium driver simply falls through to its css candidate.
-2. First *supported* candidate that uniquely matches ≥ `minScore` wins (`score` fixed `1.0`).
+2. First _supported_ candidate that uniquely matches ≥ `minScore` wins (`score` fixed `1.0`).
 3. Emit `locator.resolved` with `resolvedKind`, `resolvedRank` (winner index), `candidates[]` (each `matched`/`missed`/`skipped`), `degraded = rank>0`. A `degraded` resolution also triggers a DOM-snapshot `artifact.captured` so a later human-approved locator-fix slice has evidence even when the run did not fail.
 4. If **all supported** candidates miss → throw `SelectorNotFoundError` with `logicalName` + `attempted[]`. Ambiguous unique-match violation → `SelectorAmbiguousError`.
 
@@ -553,30 +678,57 @@ export interface LocatorResolver { resolve(locator: Locator): Promise<LocatorRes
 import type { Locator } from "@sentinel/contracts";
 
 export const loginLocators = {
-  username: { logicalName: "auth.login.username", candidates: [
-    { kind: "label", value: "Email" },
-    { kind: "css",   value: "input#login_email[autocomplete='username']" },   // migrated rank-6 fallback
-  ]},
-  password: { logicalName: "auth.login.password", candidates: [
-    { kind: "label", value: "Password" },
-    { kind: "css",   value: "input#login_password[autocomplete='current-password']" },
-  ]},
-  submit:   { logicalName: "auth.login.submit", candidates: [
-    { kind: "role", value: "button", options: { name: "Login" } },
-    { kind: "css",  value: "button.btn-login[type='submit']" },
-  ]},
-  // INVALID detection (D-3): structural .invalid candidate FIRST, button-text source SECOND.
-  invalid:  { logicalName: "auth.login.invalidState", candidates: [
-    { kind: "css", value: ".page-card-body.invalid .btn-login[type='submit']" }, // structural (enum INVALID_STATE)
-    { kind: "css", value: "button.btn-login[type='submit']" },                    // today's text source, retained
-  ]},
+  username: {
+    logicalName: "auth.login.username",
+    candidates: [
+      { kind: "label", value: "Email" },
+      { kind: "css", value: "input#login_email[autocomplete='username']" }, // migrated rank-6 fallback
+    ],
+  },
+  password: {
+    logicalName: "auth.login.password",
+    candidates: [
+      { kind: "label", value: "Password" },
+      {
+        kind: "css",
+        value: "input#login_password[autocomplete='current-password']",
+      },
+    ],
+  },
+  submit: {
+    logicalName: "auth.login.submit",
+    candidates: [
+      { kind: "role", value: "button", options: { name: "Login" } },
+      { kind: "css", value: "button.btn-login[type='submit']" },
+    ],
+  },
+  // INVALID detection (D-3): structural .invalid candidate FIRST, invalid-MESSAGE text SECOND.
+  // CORRECTION (post-impl, commit 09ee4ac): candidate 2 was originally specified as the bare
+  // `button.btn-login[type='submit']` with a visibility check — but that button is always
+  // present/visible while the login form is on screen, so the INVALID branch won the
+  // waitForFirstOf race during a SUCCESSFUL login's redirect window (false business-failure on
+  // a valid login). Candidate 2 must match the invalid STATE, not button presence — a text
+  // match on the invalid message (durable-first / text-fallback; neither matches on success).
+  invalid: {
+    logicalName: "auth.login.invalidState",
+    candidates: [
+      {
+        kind: "css",
+        value: ".page-card-body.invalid .btn-login[type='submit']",
+      }, // structural (enum INVALID_STATE)
+      { kind: "text", value: "Invalid Login. Try again." }, // fallback: button shows invalid text (NOT mere presence)
+    ],
+  },
 } satisfies Record<string, Locator>;
 
 export const appShellLocators = {
   // DRIVER-NEUTRAL success signal — an app-shell Locator, NOT a URL. URL is reinforcement only.
-  ready: { logicalName: "auth.appShell.ready", candidates: [
-    { kind: "css", value: "div.desktop-wrapper" },   // AppShellSelectors.ROOT
-  ]},
+  ready: {
+    logicalName: "auth.appShell.ready",
+    candidates: [
+      { kind: "css", value: "div.desktop-wrapper" }, // AppShellSelectors.ROOT
+    ],
+  },
 } satisfies Record<string, Locator>;
 ```
 
@@ -586,21 +738,21 @@ export const appShellLocators = {
 
 ## 8. Auth-slice migration map (D-1 full move + D-2 spec edits)
 
-Verified live defects: **D1** `app-shell.ts:26` captures `page.url()` once (stale); **D2** `app-shell.ts:28-34` *returns* on timeout so the race in `log-in-page.ts:31-34` can resolve `"SUCCESS"` by timing out; **D3** `log-in-page.ts:66-75` `waitForSuccessSignal` is dead code; **D4** `log-in-form.ts:50-63` manual `while`+`waitForTimeout` polling; **D5** `log-in-form.ts:5,55` keys invalidity off the English string `"Invalid Login. Try again."`.
+Verified live defects: **D1** `app-shell.ts:26` captures `page.url()` once (stale); **D2** `app-shell.ts:28-34` _returns_ on timeout so the race in `log-in-page.ts:31-34` can resolve `"SUCCESS"` by timing out; **D3** `log-in-page.ts:66-75` `waitForSuccessSignal` is dead code; **D4** `log-in-form.ts:50-63` manual `while`+`waitForTimeout` polling; **D5** `log-in-form.ts:5,55` keys invalidity off the English string `"Invalid Login. Try again."`.
 
-| Existing file | Becomes | How / defects fixed |
-|---|---|---|
-| `src/selectors/log-in-selectors.ts` (`const enum`) | CSS folds into `examples/web-erpnext/src/domain/auth/locators.ts` as **rank-6 `css` fallbacks**; `role`/`label` added on top. `const enum` deleted. | Live resolution unchanged (css identical). `INVALID_STATE` becomes the `invalid` locator's structural candidate. **D5 fixed.** |
-| `src/selectors/app-shell-selectors.ts` | CSS folds into `appShellLocators` as `css` fallbacks. | `ROOT` becomes the driver-neutral `ready` success signal. |
-| `src/ui/components/log-in-form/log-in-form.ts` | **Rewritten** as `components/auth/log-in-form.ts` on `Session` (no `@playwright/test`). `fill→action.typeText`, `submit→action.tap`. | **D4 fixed:** manual poll deleted; the INVALID wait uses the driver `waitForFirstOf`/`waitFor`; throws `TimeoutError` not bare `Error`. `read()` of the message element populates `message`. |
-| `src/ui/components/app-shell/app-shell.ts` | **Rewritten** as `components/auth/app-shell.ts` on `Session`. `ready` exposed as a Locator. | **D1 fixed:** no captured-once URL; readiness is `assert.waitFor(appShellLocators.ready,"visible")`, re-resolved each tick. **D2 fixed:** `waitFor` **throws** on timeout. URL check (if `navigation`) is non-load-bearing reinforcement. |
-| `src/ui/pages/log-in-page.ts` | **Folded into the flow body** (FPM). | **D3 fixed:** dead `waitForSuccessSignal` deleted. The `Promise.race` is replaced by `session.assert.waitForFirstOf([{label:"INVALID",target:loginLocators.invalid,state:"visible"},{label:"SUCCESS",target:appShellLocators.ready,state:"visible"}],{timeoutMs})` — driver owns concurrency + loser-cancellation and **throws on no-winner**. One `correlationId` + one `startedAt` at entry (replaces the two `Date.now()`). Builds `LoginResult` via `ok`/`businessFailure`; emits `flow.finished` + `business.failure`. |
-| `src/flows/auth/log-in.ts` | **Signature preserved (R-1):** `logIn(page, credentials, opts): Promise<LoginResult>`. | Internally builds `const sink = new CompositeSink([new InMemorySink(), new JsonlSink({ filePath })])` and wraps the `Page` in `PlaywrightDriver.createSession({ existingPage: page, defaultTimeoutMs }, sink)` (telemetry is the required 2nd arg per §3.7). `opts` gains an optional `sink?: TelemetrySink` (default as above) so the §10.4 unit test can inject and read an `InMemorySink`. Returns the rich `LoginResult`; call sites still pass `page`. |
-| `src/domain/auth/log-in-result.ts` | `LoginResult = Result<LoginSuccessData, LoginReason, LoginFailureDetails>` (rich; §4). Flat interface + projection **removed**. | Specs/fixtures updated to nested shape (below). |
-| `src/domain/auth/credentials.ts` | **Moved unchanged** to `examples/web-erpnext/src/domain/auth/credentials.ts`. | `Readonly<{username,password}>` already tool-agnostic. |
-| `src/config/{env,timeout}.ts` | `env.ts` **moved** to `examples/web-erpnext/src/config/`; `timeout.ts` **authored new** (currently a 0-byte stub) to export `defaultTimeoutMs` (replaces the `10_000` literals). | env vars unchanged (`BASE_URL`, `ADMIN_USER`, `ADMIN_PASSWORD`). |
-| `src/core/*` 0-byte stubs | **Deleted**; reborn as `@sentinel/contracts` + `@sentinel/core`. | Empty stubs import nothing → no fallout. |
-| All other flat-tree stubs (empty `data-table`/`dialog`/`form` components, empty barrels `src/config/index.ts` + `src/ui/**/index.ts`, `tests/_support/test.config.ts`, dead `index.ts` re-exports) | **Deleted** as unused. | `src/domain/auth/index.ts`'s **value** re-export of `LoginResult` is rewritten to `export type` (it is now a type alias; else `consistent-type-imports` flags it). |
+| Existing file                                                                                                                                                                                      | Becomes                                                                                                                                                                          | How / defects fixed                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         |
+| -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `src/selectors/log-in-selectors.ts` (`const enum`)                                                                                                                                                 | CSS folds into `examples/web-erpnext/src/domain/auth/locators.ts` as **rank-6 `css` fallbacks**; `role`/`label` added on top. `const enum` deleted.                              | Live resolution unchanged (css identical). `INVALID_STATE` becomes the `invalid` locator's structural candidate. **D5 fixed.**                                                                                                                                                                                                                                                                                                                                                                                              |
+| `src/selectors/app-shell-selectors.ts`                                                                                                                                                             | CSS folds into `appShellLocators` as `css` fallbacks.                                                                                                                            | `ROOT` becomes the driver-neutral `ready` success signal.                                                                                                                                                                                                                                                                                                                                                                                                                                                                   |
+| `src/ui/components/log-in-form/log-in-form.ts`                                                                                                                                                     | **Rewritten** as `components/auth/log-in-form.ts` on `Session` (no `@playwright/test`). `fill→action.typeText`, `submit→action.tap`.                                             | **D4 fixed:** manual poll deleted; the INVALID wait uses the driver `waitForFirstOf`/`waitFor`; throws `TimeoutError` not bare `Error`. `read()` of the message element populates `message`.                                                                                                                                                                                                                                                                                                                                |
+| `src/ui/components/app-shell/app-shell.ts`                                                                                                                                                         | **Rewritten** as `components/auth/app-shell.ts` on `Session`. `ready` exposed as a Locator.                                                                                      | **D1 fixed:** no captured-once URL; readiness is `assert.waitFor(appShellLocators.ready,"visible")`, re-resolved each tick. **D2 fixed:** `waitFor` **throws** on timeout. URL check (if `navigation`) is non-load-bearing reinforcement.                                                                                                                                                                                                                                                                                   |
+| `src/ui/pages/log-in-page.ts`                                                                                                                                                                      | **Folded into the flow body** (FPM).                                                                                                                                             | **D3 fixed:** dead `waitForSuccessSignal` deleted. The `Promise.race` is replaced by `session.assert.waitForFirstOf([{label:"INVALID",target:loginLocators.invalid,state:"visible"},{label:"SUCCESS",target:appShellLocators.ready,state:"visible"}],{timeoutMs})` — driver owns concurrency + loser-cancellation and **throws on no-winner**. One `correlationId` + one `startedAt` at entry (replaces the two `Date.now()`). Builds `LoginResult` via `ok`/`businessFailure`; emits `flow.finished` + `business.failure`. |
+| `src/flows/auth/log-in.ts`                                                                                                                                                                         | **Signature preserved (R-1):** `logIn(page, credentials, opts): Promise<LoginResult>`.                                                                                           | Internally builds `const sink = new CompositeSink([new InMemorySink(), new JsonlSink({ filePath })])` and wraps the `Page` in `PlaywrightDriver.createSession({ existingPage: page, defaultTimeoutMs }, sink)` (telemetry is the required 2nd arg per §3.7). `opts` gains an optional `sink?: TelemetrySink` (default as above) so the §10.4 unit test can inject and read an `InMemorySink`. Returns the rich `LoginResult`; call sites still pass `page`.                                                                 |
+| `src/domain/auth/log-in-result.ts`                                                                                                                                                                 | `LoginResult = Result<LoginSuccessData, LoginReason, LoginFailureDetails>` (rich; §4). Flat interface + projection **removed**.                                                  | Specs/fixtures updated to nested shape (below).                                                                                                                                                                                                                                                                                                                                                                                                                                                                             |
+| `src/domain/auth/credentials.ts`                                                                                                                                                                   | **Moved unchanged** to `examples/web-erpnext/src/domain/auth/credentials.ts`.                                                                                                    | `Readonly<{username,password}>` already tool-agnostic.                                                                                                                                                                                                                                                                                                                                                                                                                                                                      |
+| `src/config/{env,timeout}.ts`                                                                                                                                                                      | `env.ts` **moved** to `examples/web-erpnext/src/config/`; `timeout.ts` **authored new** (currently a 0-byte stub) to export `defaultTimeoutMs` (replaces the `10_000` literals). | env vars unchanged (`BASE_URL`, `ADMIN_USER`, `ADMIN_PASSWORD`).                                                                                                                                                                                                                                                                                                                                                                                                                                                            |
+| `src/core/*` 0-byte stubs                                                                                                                                                                          | **Deleted**; reborn as `@sentinel/contracts` + `@sentinel/core`.                                                                                                                 | Empty stubs import nothing → no fallout.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    |
+| All other flat-tree stubs (empty `data-table`/`dialog`/`form` components, empty barrels `src/config/index.ts` + `src/ui/**/index.ts`, `tests/_support/test.config.ts`, dead `index.ts` re-exports) | **Deleted** as unused.                                                                                                                                                           | `src/domain/auth/index.ts`'s **value** re-export of `LoginResult` is rewritten to `export type` (it is now a type alias; else `consistent-type-imports` flags it).                                                                                                                                                                                                                                                                                                                                                          |
 
 ### Test edits (D-2 — specs migrate to nested shape)
 
@@ -614,7 +766,7 @@ expect(result.errorMessage).toBeTruthy();
 expect(result.status).toBe("business-failure");
 if (result.status === "business-failure") {
   expect(result.reason).toBe("INVALID_CREDENTIALS");
-  expect(result.message).toBeTruthy();   // localized text still surfaced for humans
+  expect(result.message).toBeTruthy(); // localized text still surfaced for humans
 }
 ```
 
@@ -622,7 +774,11 @@ if (result.status === "business-failure") {
 
 ```ts
 // BEFORE
-if (!result.success) { throw new Error(`Admin login failed: ${result.errorMessage ?? "unknown error"}`); }
+if (!result.success) {
+  throw new Error(
+    `Admin login failed: ${result.errorMessage ?? "unknown error"}`,
+  );
+}
 // AFTER
 if (result.status !== "success") {
   throw new Error(`Admin login failed: ${result.message ?? result.reason}`);
@@ -639,9 +795,9 @@ The live code binds `invalidState = submitButton` and detects invalidity via but
 
 ## 9. Residual risks & explicitly deferred items
 
-- **In-flow retry / retry-then-pass is not produced in Slice A.** `RetryEvent` is defined but nothing in the auth flow retries within a run; Playwright spec-level retries create a *new* `correlationId`. Slice A detects infra-flake only **cross-run**. We define the cross-run join key now (`flowRunGroupId`, a stable hash of `flowName` + **non-secret input identity only — never the password or any credential**, distinct from per-run `correlationId`) and emit it on `run.started` / `flow.finished`, but the in-flow `retry` wrapper is deferred.
+- **In-flow retry / retry-then-pass is not produced in Slice A.** `RetryEvent` is defined but nothing in the auth flow retries within a run; Playwright spec-level retries create a _new_ `correlationId`. Slice A detects infra-flake only **cross-run**. We define the cross-run join key now (`flowRunGroupId`, a stable hash of `flowName` + **non-secret input identity only — never the password or any credential**, distinct from per-run `correlationId`) and emit it on `run.started` / `flow.finished`, but the in-flow `retry` wrapper is deferred.
 - **`.invalid` structural signal unverified against the live app** — mitigated by the dual-candidate fallback (D-3); live confirmation deferred.
-- **No real second driver / no mobile driver exists yet.** Capability gating, open `StrategyKind`, `GestureTarget`, async `currentUrl?`, and `waitForFirstOf` as a driver-owned primitive are designed so Appium/WDIO are *additive registrations*, but only the Playwright adapter is implemented and proven.
+- **No real second driver / no mobile driver exists yet.** Capability gating, open `StrategyKind`, `GestureTarget`, async `currentUrl?`, and `waitForFirstOf` as a driver-owned primitive are designed so Appium/WDIO are _additive registrations_, but only the Playwright adapter is implemented and proven.
 - **Fuzzy/self-healing scoring, `relative` strategy, OTel span tree, Allure/JUnit sinks, npm-package publication (real `dist` builds), multiremote** — declared in type space (non-retrofit) but **unimplemented**. `resolvedRank`/`degraded`/`minScore`/`traceId`/`CompositeSink` are the forward-compatible seams.
 - **`SessionConfig.baseUrl` is dead on the page-wrap path** (the test owns `page.goto("/login")`); optional and ignored there. `defaultTimeoutMs` is the single timeout source of truth.
 - **Artifact persistence beyond JSONL telemetry** (screenshots/DOM snapshots to disk) is referenced by `Artifact.ref` but the on-disk store is a later reporting slice; Slice A may inline small snapshots.
@@ -664,7 +820,7 @@ The live code binds `invalidState = submitButton` and detects invalidity via but
 1. **R-1 (signature):** keep `logIn(page, …)` (page-wrap) as specified, or also expose/prefer `logIn(session, …)`?
 2. **Example app home:** `examples/web-erpnext` as the migrated-slice workspace (matches the README) — accept, or prefer `apps/` / keeping tests at repo root?
 3. **JSONL path:** `test-results/telemetry/<runId>.jsonl` acceptable, or a different location (e.g. a git-ignored `.sentinel/`)?
-4. **Playwright loader tsconfig (validate at build time):** which tsconfig Playwright's esbuild loader reads for *transitively-imported* `packages/**` files (outside `examples/web-erpnext`) is genuinely uncertain — it may pick a package tsconfig lacking the `@sentinel/*` paths. Likely fix is `build: { tsconfig: '<the tsconfig that declares the paths>' }` in `playwright.config.ts`, but the implementer must confirm empirically (a spec importing `@sentinel/core` **and** a `driver-playwright` file importing `@sentinel/contracts` both resolving at test time) rather than asserting it here.
+4. **Playwright loader tsconfig (validate at build time):** which tsconfig Playwright's esbuild loader reads for _transitively-imported_ `packages/**` files (outside `examples/web-erpnext`) is genuinely uncertain — it may pick a package tsconfig lacking the `@sentinel/*` paths. Likely fix is `build: { tsconfig: '<the tsconfig that declares the paths>' }` in `playwright.config.ts`, but the implementer must confirm empirically (a spec importing `@sentinel/core` **and** a `driver-playwright` file importing `@sentinel/contracts` both resolving at test time) rather than asserting it here.
 
 ---
 
