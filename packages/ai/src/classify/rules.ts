@@ -6,6 +6,7 @@ import type {
   SystemFailureEvent,
   AssertionEvent,
   RetryEvent,
+  BusinessFailureEvent,
 } from "@sentinel/core";
 import type { RunClassification, RunOutcome } from "../analysis";
 import type { Verdict, Evidence } from "../verdict";
@@ -68,6 +69,15 @@ function retryEvidence(e: RetryEvent): Evidence {
       maxAttempts: e.maxAttempts,
       previousOutcome: e.previousOutcome,
     },
+  };
+}
+
+function businessEvidence(e: BusinessFailureEvent): Evidence {
+  return {
+    eventId: e.eventId,
+    type: e.type,
+    detail: `Domain outcome '${e.domainReason}' on '${e.name}' (system behaved correctly)`,
+    fields: { domainReason: e.domainReason },
   };
 }
 
@@ -219,6 +229,19 @@ export function classify(events: readonly TelemetryEvent[]): RunClassification {
       confidence: 0.8,
       summary: `Retryable ${e.errorKind} on '${e.name}'`,
       evidence: [failureEvidence(e)],
+      logicalName: e.name,
+      source: "rule",
+    });
+  }
+
+  // §4.5 — each business.failure → business-outcome (NOT a defect)
+  for (const e of events) {
+    if (!isType(e, "business.failure")) continue;
+    verdicts.push({
+      kind: "business-outcome",
+      confidence: 1.0,
+      summary: `Business outcome: ${e.domainReason}`,
+      evidence: [businessEvidence(e)],
       logicalName: e.name,
       source: "rule",
     });

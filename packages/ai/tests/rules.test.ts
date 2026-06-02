@@ -254,3 +254,29 @@ test("classify: retryable timeout (not a rank-0 mismatch) is infra-flake", () =>
   expect(flake?.evidence[0]?.eventId).toBe(fail.eventId);
   expect(c.verdicts.some((v) => v.kind === "real-bug")).toBe(false);
 });
+
+test("classify: business.failure is business-outcome carrying domainReason", () => {
+  const bf = businessFailure({
+    name: "auth.login",
+    domainReason: "INVALID_CREDENTIALS",
+  });
+  const events: TelemetryEvent[] = [
+    bf,
+    flowFinished({
+      outcome: "business-failure",
+      terminalReason: "INVALID_CREDENTIALS",
+    }),
+  ];
+
+  const c = classify(events);
+
+  expect(c.outcome).toBe("business-failure");
+  const bo = c.verdicts.find((v) => v.kind === "business-outcome");
+  expect(bo).toBeDefined();
+  expect(bo?.confidence).toBe(1.0);
+  expect(bo?.source).toBe("rule");
+  expect(bo?.evidence[0]?.eventId).toBe(bf.eventId);
+  expect(bo?.evidence[0]?.fields?.domainReason).toBe("INVALID_CREDENTIALS");
+  // a business outcome is not a defect, but it is also not "healthy"
+  expect(c.verdicts.some((v) => v.kind === "healthy")).toBe(false);
+});
