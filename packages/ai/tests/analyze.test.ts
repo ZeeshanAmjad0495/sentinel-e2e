@@ -131,3 +131,47 @@ test("explain:false with no indeterminate verdicts => LLM not invoked", async ()
   expect(analysis.usedLlm).toBe(false);
   expect(analysis.explanation).toBeUndefined();
 });
+
+import type { AnalysisContext, LlmProvider, LlmRunResult } from "../src/llm";
+
+/** A provider whose analyze() always rejects. */
+class RejectingProvider implements LlmProvider {
+  analyze(_ctx: AnalysisContext): Promise<LlmRunResult> {
+    return Promise.reject(new Error("rate limited"));
+  }
+}
+
+test("provider.analyze rejects => usedLlm:false, llmError set, verdicts intact", async () => {
+  const analysis = await analyzeRun(realBugEvents(), {
+    provider: new RejectingProvider(),
+  });
+
+  expect(analysis.usedLlm).toBe(false);
+  expect(analysis.llmError).toBe("rate limited");
+  expect(analysis.explanation).toBeUndefined();
+  // rule verdicts survive the LLM failure.
+  expect(analysis.verdicts.some((v) => v.kind === "real-bug")).toBe(true);
+  expect(analysis.verdicts.every((v) => v.source === "rule")).toBe(true);
+});
+
+test("auto-mode (provider undefined) with no ANTHROPIC_API_KEY => rules-only + llmError note", async () => {
+  const prev = process.env.ANTHROPIC_API_KEY;
+  delete process.env.ANTHROPIC_API_KEY;
+  try {
+    const analysis = await analyzeRun(realBugEvents()); // no opts => explain default true
+    expect(analysis.usedLlm).toBe(false);
+    expect(analysis.llmError).toBe("no ANTHROPIC_API_KEY; rules-only");
+    expect(analysis.verdicts.some((v) => v.kind === "real-bug")).toBe(true);
+  } finally {
+    if (prev !== undefined) process.env.ANTHROPIC_API_KEY = prev;
+  }
+});
+
+test("explain:false, provider:null => clean rules-only, no llmError", async () => {
+  const analysis = await analyzeRun(realBugEvents(), {
+    provider: null,
+    explain: false,
+  });
+  expect(analysis.usedLlm).toBe(false);
+  expect(analysis.llmError).toBeUndefined();
+});
