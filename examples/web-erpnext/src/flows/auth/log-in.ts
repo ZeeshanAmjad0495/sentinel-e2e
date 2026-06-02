@@ -18,6 +18,10 @@ import { defaultTimeoutMs } from "../../config/timeout";
 const FLOW_NAME = "auth.login";
 const INVALID_REASON = "INVALID_CREDENTIALS" as const;
 
+// traceId/spanId/sequence are stamped centrally by the session's StampingSink (core §6);
+// these are placeholders that satisfy the TelemetryEnvelope type contract only.
+const STAMPED_BY_SINK = "";
+
 type CreateSession = (
   page: Page,
   sink: TelemetrySink,
@@ -69,7 +73,7 @@ async function logIn(
   const startedAt = Date.now();
 
   const flowSink = session.telemetry;
-  emitFlowStarted(flowSink, correlationId, FLOW_NAME, startedAt);
+  emitEvent(flowSink, "flow.started", correlationId, FLOW_NAME);
 
   const form = new LogInForm(session);
   await form.fill(credentials);
@@ -92,21 +96,27 @@ async function logIn(
 
   if (winner === "INVALID") {
     const message = await form.readMessage();
-    emitBusinessFailure(flowSink, correlationId, FLOW_NAME, INVALID_REASON);
-    emitFlowFinished(
-      flowSink,
-      correlationId,
-      FLOW_NAME,
-      "business-failure",
-      INVALID_REASON,
-    );
+    emitEvent(flowSink, "business.failure", correlationId, FLOW_NAME, {
+      status: "ok" as const,
+      domainReason: INVALID_REASON,
+    });
+    emitEvent(flowSink, "flow.finished", correlationId, FLOW_NAME, {
+      outcome: "business-failure" as const,
+      terminalReason: INVALID_REASON,
+      didDegrade: false,
+      timing: finishedTiming(startedAt, durationMs),
+    });
     return businessFailure(INVALID_REASON, meta, {
       message,
       details: { username: credentials.username, finalUrl },
     });
   }
 
-  emitFlowFinished(flowSink, correlationId, FLOW_NAME, "success");
+  emitEvent(flowSink, "flow.finished", correlationId, FLOW_NAME, {
+    outcome: "success" as const,
+    didDegrade: false,
+    timing: finishedTiming(startedAt, durationMs),
+  });
   return ok({ username: credentials.username, finalUrl }, meta);
 }
 
@@ -121,64 +131,41 @@ function nowTiming() {
   };
 }
 
-function emitFlowStarted(
-  sink: TelemetrySinkLike,
-  traceId: string,
-  name: string,
-  _startedAt: number,
-): void {
-  sink.emit({
-    schemaVersion: "1.0.0",
-    eventId: cryptoId(),
-    type: "flow.started",
-    traceId,
-    spanId: cryptoId(),
-    sequence: 0,
-    name,
-    timing: nowTiming(),
-  });
+/** Timing for the terminal flow.finished event: reuses the already-computed flow duration. */
+function finishedTiming(startedAt: number, durationMs: number) {
+  return {
+    startWallClockMs: startedAt,
+    startMonotonicNs: process.hrtime.bigint(),
+    durationMs,
+  };
 }
 
-function emitBusinessFailure(
+/**
+ * Single envelope builder. Merges common fields with type-specific `extra` and emits.
+ * spanId/sequence are placeholders — the session's StampingSink overwrites them (core §6).
+ */
+function emitEvent(
   sink: TelemetrySinkLike,
+  type: string,
   traceId: string,
   name: string,
-  domainReason: string,
+  extra: Record<string, unknown> = {},
 ): void {
+  const { timing, ...rest } = extra as {
+    timing?: ReturnType<typeof nowTiming>;
+    [k: string]: unknown;
+  };
   sink.emit({
     schemaVersion: "1.0.0",
     eventId: cryptoId(),
-    type: "business.failure",
+    type: type as never,
     traceId,
-    spanId: cryptoId(),
+    spanId: STAMPED_BY_SINK,
     sequence: 0,
     name,
-    status: "ok",
-    timing: nowTiming(),
-    domainReason,
-  });
-}
-
-function emitFlowFinished(
-  sink: TelemetrySinkLike,
-  traceId: string,
-  name: string,
-  outcome: "success" | "business-failure" | "system-failure",
-  terminalReason?: string,
-): void {
-  sink.emit({
-    schemaVersion: "1.0.0",
-    eventId: cryptoId(),
-    type: "flow.finished",
-    traceId,
-    spanId: cryptoId(),
-    sequence: 0,
-    name,
-    timing: nowTiming(),
-    outcome,
-    terminalReason,
-    didDegrade: false,
-  });
+    timing: timing ?? nowTiming(),
+    ...rest,
+  } as never);
 }
 
 function cryptoId(): string {
