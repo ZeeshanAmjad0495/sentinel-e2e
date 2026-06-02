@@ -1,3 +1,2 @@
-import logIn from "./log-in";
-
-export { logIn };
+// examples/web-erpnext/src/flows/auth/index.ts
+export { logIn } from "./log-in";

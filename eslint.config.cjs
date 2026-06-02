@@ -77,11 +77,12 @@ module.exports = [
     },
   },
   {
-    // TEMPORARY (S1 → removed in S4): the migrated auth slice is still the
-    // OLD Playwright-coupled version. Its rewrite onto @sentinel/driver-playwright
-    // happens in S4, which deletes this block. Until then, exempt the moved
-    // app/flow/component code from the Playwright import ban.
-    files: ['examples/web-erpnext/src/**/*.ts'],
+    // NARROW boundary exemption (S4): the page-wrap login flow keeps ONE legitimate
+    // Playwright import — `import type { Page }` for its signature (consistent-type-imports
+    // + typecheck keep it type-only; no Playwright runtime is pulled in). This single-file
+    // exemption replaces the broad S1 `examples/web-erpnext/src/**` block, now that the
+    // rest of the rewritten app/flow/component code is fully Playwright-free.
+    files: ['examples/web-erpnext/src/flows/auth/log-in.ts'],
     rules: {
       'no-restricted-imports': 'off',
     },
