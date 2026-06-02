@@ -181,3 +181,38 @@ test("classify: a preceding retry on the same span suppresses real-bug", () => {
 
   expect(c.verdicts.some((v) => v.kind === "real-bug")).toBe(false);
 });
+
+test("classify: timeout whose branchProgress is attached-not-visible is real-bug", () => {
+  const a = assertion({
+    name: "dashboard.firstOf",
+    spanId: "span-firstOf",
+    matched: false,
+    locatorRank: 1, // not a rank-0 mismatch; the signal is branchProgress
+    state: "visible",
+    branchProgress: [
+      { label: "success", reachedState: "attached", resolvedRank: 0 },
+      { label: "error", reachedState: "none", resolvedRank: null },
+    ],
+  });
+  const fail = systemFailure({
+    name: "dashboard.firstOf",
+    spanId: "span-firstOf",
+    errorKind: "timeout",
+    retryable: true,
+    message: "race timed out",
+  });
+  const events: TelemetryEvent[] = [
+    a,
+    fail,
+    flowFinished({ outcome: "system-failure" }),
+  ];
+
+  const c = classify(events);
+
+  const bug = c.verdicts.find((v) => v.kind === "real-bug");
+  expect(bug).toBeDefined();
+  expect(bug?.confidence).toBe(0.85);
+  expect(bug?.evidence[0]?.eventId).toBe(fail.eventId);
+  // the attached-not-visible timeout is a real-bug, never an infra-flake
+  expect(c.verdicts.some((v) => v.kind === "infra-flake")).toBe(false);
+});

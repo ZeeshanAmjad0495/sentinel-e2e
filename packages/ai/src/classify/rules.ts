@@ -76,6 +76,21 @@ function assertionEvidence(e: AssertionEvent): Evidence {
   };
 }
 
+/** True when any assertion in the same span shows a success-signal branch
+ *  that reached "attached" but never "visible" (the app rendered the node
+ *  but never made it visible — an app defect, not a flake). */
+function isAttachedNotVisible(
+  events: readonly TelemetryEvent[],
+  spanId: string,
+): boolean {
+  return events.some(
+    (e) =>
+      isType(e, "assertion") &&
+      e.spanId === spanId &&
+      (e.branchProgress ?? []).some((b) => b.reachedState === "attached"),
+  );
+}
+
 /** Pure deterministic classifier. No I/O, no API. Implements spec §4. */
 export function classify(events: readonly TelemetryEvent[]): RunClassification {
   const runId = events[0]?.traceId ?? "";
@@ -135,6 +150,23 @@ export function classify(events: readonly TelemetryEvent[]): RunClassification {
       source: "rule",
     });
   });
+
+  // §4.3 — timeout whose branchProgress is attached-not-visible → real-bug
+  const attachedNotVisibleTimeouts = new Set<string>();
+  for (const e of events) {
+    if (!isType(e, "system.failure")) continue;
+    if (e.errorKind !== "timeout") continue;
+    if (!isAttachedNotVisible(events, e.spanId)) continue;
+    attachedNotVisibleTimeouts.add(e.eventId);
+    verdicts.push({
+      kind: "real-bug",
+      confidence: 0.85,
+      summary: `Timeout on '${e.name}': success signal attached but never became visible`,
+      evidence: [failureEvidence(e)],
+      logicalName: e.name,
+      source: "rule",
+    });
+  }
 
   // §4.6 — healthy: success with no defects (coexists with drift warnings)
   const hasDefect = verdicts.some(
