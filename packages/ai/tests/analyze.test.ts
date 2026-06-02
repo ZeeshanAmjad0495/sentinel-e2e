@@ -42,6 +42,44 @@ function realBugEvents(): TelemetryEvent[] {
   return [assertion, finished];
 }
 
+import { FakeLlmProvider } from "../src/llm";
+import type { LlmRunResult } from "../src/llm";
+
+/** An indeterminate run: assertion-infrastructure system.failure the rules can't pin. */
+function indeterminateEvents(): TelemetryEvent[] {
+  const failure = {
+    ...baseEnvelope("system.failure", "sys-1", 1, "auth.login.submit"),
+    status: "error",
+    errorKind: "assertion-infrastructure",
+    message: "selector engine crashed",
+    retryable: false,
+    artifactRefs: [],
+  } as TelemetryEvent;
+  const finished = {
+    ...baseEnvelope("flow.finished", "finish-1", 2, "auth.login"),
+    status: "error",
+    outcome: "system-failure",
+    didDegrade: false,
+  } as TelemetryEvent;
+  return [failure, finished];
+}
+
+const cannedResult: LlmRunResult = {
+  explanation: "Claude says the selector engine crashed mid-assertion.",
+  adjudications: [
+    {
+      eventId: "sys-1",
+      verdict: {
+        kind: "infra-flake",
+        confidence: 0.6,
+        summary: "transient selector-engine crash",
+        evidence: [],
+        source: "llm",
+      },
+    },
+  ],
+};
+
 test("provider:null => rules-only analysis (usedLlm:false, no llmError)", async () => {
   const analysis = await analyzeRun(realBugEvents(), { provider: null });
 
@@ -53,4 +91,43 @@ test("provider:null => rules-only analysis (usedLlm:false, no llmError)", async 
   // verdicts come straight from the classifier.
   expect(analysis.verdicts.some((v) => v.kind === "real-bug")).toBe(true);
   expect(analysis.verdicts.every((v) => v.source === "rule")).toBe(true);
+});
+
+test("FakeLlmProvider => explanation + adjudicated verdict merged, usedLlm:true", async () => {
+  const analysis = await analyzeRun(indeterminateEvents(), {
+    provider: new FakeLlmProvider(cannedResult),
+  });
+
+  expect(analysis.usedLlm).toBe(true);
+  expect(analysis.llmError).toBeUndefined();
+  expect(analysis.explanation).toBe(
+    "Claude says the selector engine crashed mid-assertion.",
+  );
+  // the llm-sourced verdict is appended to the merged verdict list.
+  const llmVerdict = analysis.verdicts.find((v) => v.source === "llm");
+  expect(llmVerdict?.kind).toBe("infra-flake");
+  expect(llmVerdict?.summary).toBe("transient selector-engine crash");
+});
+
+test("explain defaults to true => LLM invoked even with no indeterminate verdicts", async () => {
+  const explainOnly: LlmRunResult = {
+    explanation: "All green; one selector drifted silently.",
+    adjudications: [],
+  };
+  const analysis = await analyzeRun(realBugEvents(), {
+    provider: new FakeLlmProvider(explainOnly),
+  });
+  expect(analysis.usedLlm).toBe(true);
+  expect(analysis.explanation).toBe(
+    "All green; one selector drifted silently.",
+  );
+});
+
+test("explain:false with no indeterminate verdicts => LLM not invoked", async () => {
+  const analysis = await analyzeRun(realBugEvents(), {
+    provider: new FakeLlmProvider(cannedResult),
+    explain: false,
+  });
+  expect(analysis.usedLlm).toBe(false);
+  expect(analysis.explanation).toBeUndefined();
 });
