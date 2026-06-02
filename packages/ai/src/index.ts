@@ -8,3 +8,4 @@ export type {
 } from "./analysis";
 export { loadEvents } from "./load";
 export { redactEvents } from "./redact";
+export * from "./classify";
