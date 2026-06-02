@@ -79,11 +79,16 @@ export async function analyzeRun(
 
   if (!shouldUseLlm) return base;
 
+  // The API-bound context is fully scrubbed: both the events AND the classification
+  // it carries are derived from REDACTED events, so secret-shaped values embedded in
+  // evidence `detail` strings (e.g. system.failure.message) never leave the process.
+  // The local `RunAnalysis` keeps the raw-events classification for full fidelity.
+  const redacted = redactEvents(events);
   const ctx: AnalysisContext = {
     runId: classification.runId,
     outcome: classification.outcome,
-    classification,
-    events: redactEvents(events),
+    classification: classify(redacted),
+    events: redacted,
   };
 
   try {
