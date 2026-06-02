@@ -63,6 +63,38 @@ module.exports = [
     },
   },
   {
+    // DRIVER-AGNOSTIC boundary (slice B): @sentinel/ai analyzer source must
+    // import NO driver — neither Playwright nor any @sentinel/driver-* package.
+    // Tests under packages/ai/tests/** keep the test-runner exemption below.
+    files: ['packages/ai/src/**/*.ts'],
+    rules: {
+      'no-restricted-imports': [
+        'error',
+        {
+          paths: [
+            {
+              name: '@playwright/test',
+              message:
+                'Playwright is confined to @sentinel/driver-playwright and test-runner dirs.',
+            },
+            {
+              name: 'playwright',
+              message:
+                'Playwright is confined to @sentinel/driver-playwright and test-runner dirs.',
+            },
+          ],
+          patterns: [
+            {
+              group: ['@sentinel/driver-*'],
+              message:
+                '@sentinel/ai is driver-agnostic: it must import only the telemetry contract (@sentinel/core), never a driver.',
+            },
+          ],
+        },
+      ],
+    },
+  },
+  {
     // Exemption (last match wins): the driver adapter + all test-runner dirs
     // and the Playwright runner config files (test-runner tooling).
     files: [
