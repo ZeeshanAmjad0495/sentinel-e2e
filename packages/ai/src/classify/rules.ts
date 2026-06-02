@@ -42,6 +42,9 @@ function driftEvidence(e: LocatorResolvedEvent): Evidence {
 const SELECTOR_DRIFT_KINDS: ReadonlySet<SystemFailureEvent["errorKind"]> =
   new Set(["selector-not-found", "selector-ambiguous"]);
 
+const RETRYABLE_FLAKE_KINDS: ReadonlySet<SystemFailureEvent["errorKind"]> =
+  new Set(["timeout", "driver-session"]);
+
 function failureEvidence(e: SystemFailureEvent): Evidence {
   return {
     eventId: e.eventId,
@@ -51,6 +54,19 @@ function failureEvidence(e: SystemFailureEvent): Evidence {
       logicalName: e.name,
       errorKind: e.errorKind,
       retryable: e.retryable,
+    },
+  };
+}
+
+function retryEvidence(e: RetryEvent): Evidence {
+  return {
+    eventId: e.eventId,
+    type: e.type,
+    detail: `'${e.name}' retried (attempt ${e.attempt}/${e.maxAttempts}; previous: ${e.previousOutcome})`,
+    fields: {
+      attempt: e.attempt,
+      maxAttempts: e.maxAttempts,
+      previousOutcome: e.previousOutcome,
     },
   };
 }
@@ -162,6 +178,46 @@ export function classify(events: readonly TelemetryEvent[]): RunClassification {
       kind: "real-bug",
       confidence: 0.85,
       summary: `Timeout on '${e.name}': success signal attached but never became visible`,
+      evidence: [failureEvidence(e)],
+      logicalName: e.name,
+      source: "rule",
+    });
+  }
+
+  // §4.4 — retry-then-pass → infra-flake
+  if (outcome === "success") {
+    for (const e of events) {
+      if (!isType(e, "retry")) continue;
+      verdicts.push({
+        kind: "infra-flake",
+        confidence: 0.8,
+        summary: `Transient failure on '${e.name}' recovered after retry`,
+        evidence: [retryEvidence(e)],
+        logicalName: e.name,
+        source: "rule",
+      });
+    }
+  }
+
+  // §4.4 — retryable timeout/driver-session that is NOT already a rank-0
+  // assertion mismatch nor an attached-not-visible timeout → infra-flake
+  const rankZeroMismatchSpans = new Set(
+    events
+      .filter(
+        (e): e is AssertionEvent =>
+          isType(e, "assertion") && !e.matched && e.locatorRank === 0,
+      )
+      .map((e) => e.spanId),
+  );
+  for (const e of events) {
+    if (!isType(e, "system.failure")) continue;
+    if (!e.retryable || !RETRYABLE_FLAKE_KINDS.has(e.errorKind)) continue;
+    if (attachedNotVisibleTimeouts.has(e.eventId)) continue;
+    if (rankZeroMismatchSpans.has(e.spanId)) continue;
+    verdicts.push({
+      kind: "infra-flake",
+      confidence: 0.8,
+      summary: `Retryable ${e.errorKind} on '${e.name}'`,
       evidence: [failureEvidence(e)],
       logicalName: e.name,
       source: "rule",

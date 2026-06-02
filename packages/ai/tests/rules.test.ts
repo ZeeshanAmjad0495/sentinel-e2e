@@ -216,3 +216,41 @@ test("classify: timeout whose branchProgress is attached-not-visible is real-bug
   // the attached-not-visible timeout is a real-bug, never an infra-flake
   expect(c.verdicts.some((v) => v.kind === "infra-flake")).toBe(false);
 });
+
+test("classify: retry-then-pass is infra-flake", () => {
+  const r = retry({
+    name: "loginForm.submit",
+    spanId: "span-submit",
+    previousOutcome: "timeout",
+  });
+  const events: TelemetryEvent[] = [r, flowFinished({ outcome: "success" })];
+
+  const c = classify(events);
+
+  const flake = c.verdicts.find((v) => v.kind === "infra-flake");
+  expect(flake).toBeDefined();
+  expect(flake?.confidence).toBe(0.8);
+  expect(flake?.source).toBe("rule");
+  expect(flake?.evidence[0]?.eventId).toBe(r.eventId);
+});
+
+test("classify: retryable timeout (not a rank-0 mismatch) is infra-flake", () => {
+  const fail = systemFailure({
+    name: "loginForm.submit",
+    spanId: "span-submit",
+    errorKind: "timeout",
+    retryable: true,
+  });
+  const events: TelemetryEvent[] = [
+    fail,
+    flowFinished({ outcome: "system-failure" }),
+  ];
+
+  const c = classify(events);
+
+  const flake = c.verdicts.find((v) => v.kind === "infra-flake");
+  expect(flake).toBeDefined();
+  expect(flake?.confidence).toBe(0.8);
+  expect(flake?.evidence[0]?.eventId).toBe(fail.eventId);
+  expect(c.verdicts.some((v) => v.kind === "real-bug")).toBe(false);
+});
