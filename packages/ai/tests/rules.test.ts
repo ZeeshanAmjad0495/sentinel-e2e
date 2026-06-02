@@ -280,3 +280,42 @@ test("classify: business.failure is business-outcome carrying domainReason", () 
   // a business outcome is not a defect, but it is also not "healthy"
   expect(c.verdicts.some((v) => v.kind === "healthy")).toBe(false);
 });
+
+test("classify: assertion-infrastructure failure is indeterminate (for the LLM)", () => {
+  const fail = systemFailure({
+    name: "loginForm.submit",
+    errorKind: "assertion-infrastructure",
+    retryable: false,
+    message: "driver returned an unexpected null handle",
+  });
+  const events: TelemetryEvent[] = [
+    fail,
+    flowFinished({ outcome: "system-failure" }),
+  ];
+
+  const c = classify(events);
+
+  expect(c.verdicts.length).toBe(0);
+  expect(c.indeterminate.length).toBe(1);
+  const ind = c.indeterminate[0];
+  expect(ind?.kind).toBe("indeterminate");
+  expect(ind?.confidence).toBe(0);
+  expect(ind?.source).toBe("rule");
+  expect(ind?.evidence[0]?.eventId).toBe(fail.eventId);
+});
+
+test("classify: clean success with no degradation is purely healthy", () => {
+  const events: TelemetryEvent[] = [
+    locatorResolved({ logicalName: "auth.login.username", resolvedRank: 0 }),
+    assertion({ name: "dashboard.greeting", matched: true, locatorRank: 0 }),
+    flowFinished({ outcome: "success", didDegrade: false }),
+  ];
+
+  const c = classify(events);
+
+  expect(c.outcome).toBe("success");
+  expect(c.degraded).toBe(false);
+  expect(c.verdicts.map((v) => v.kind)).toEqual(["healthy"]);
+  expect(c.verdicts[0]?.confidence).toBe(1.0);
+  expect(c.indeterminate.length).toBe(0);
+});

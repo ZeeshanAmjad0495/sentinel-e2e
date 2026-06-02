@@ -263,5 +263,47 @@ export function classify(events: readonly TelemetryEvent[]): RunClassification {
     });
   }
 
+  // §4.7 — anything unmatched → indeterminate (for the LLM to adjudicate)
+  const explainedFailureEventIds = new Set(
+    verdicts
+      .flatMap((v) => v.evidence)
+      .filter((ev) => ev.type === "system.failure")
+      .map((ev) => ev.eventId),
+  );
+  for (const e of events) {
+    if (!isType(e, "system.failure")) continue;
+    if (explainedFailureEventIds.has(e.eventId)) continue;
+    indeterminate.push({
+      kind: "indeterminate",
+      confidence: 0,
+      summary: `Unclassified ${e.errorKind} on '${e.name}' — needs adjudication`,
+      evidence: [failureEvidence(e)],
+      logicalName: e.name,
+      source: "rule",
+    });
+  }
+  // a system-failure terminal explained by no verdict at all → indeterminate
+  if (
+    outcome === "system-failure" &&
+    verdicts.length === 0 &&
+    indeterminate.length === 0 &&
+    flow
+  ) {
+    indeterminate.push({
+      kind: "indeterminate",
+      confidence: 0,
+      summary: `Run ended in system-failure with no pinnable cause${flow.terminalReason ? ` (${flow.terminalReason})` : ""}`,
+      evidence: [
+        {
+          eventId: flow.eventId,
+          type: flow.type,
+          detail: `flow.finished outcome=system-failure${flow.terminalReason ? ` reason=${flow.terminalReason}` : ""}`,
+          fields: { outcome: flow.outcome },
+        },
+      ],
+      source: "rule",
+    });
+  }
+
   return { runId, flowName, outcome, degraded, verdicts, indeterminate };
 }
