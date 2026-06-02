@@ -1,8 +1,134 @@
-// packages/ai/src/llm/claude-provider.ts  (compile stub; B5 replaces this with the real @anthropic-ai/sdk provider)
-import type { AnalysisContext, LlmProvider, LlmRunResult } from "./provider";
+import Anthropic from "@anthropic-ai/sdk";
+import type { LlmProvider, AnalysisContext, LlmRunResult } from "./provider";
+
+/** Locked model for the AI run-analyzer (spec D-3 / §5.2). */
+export const CLAUDE_MODEL = "claude-opus-4-8" as const;
+
+/** The forced structured-output tool name (spec §5.2). */
+export const REPORT_TOOL_NAME = "report_run_analysis" as const;
+
+export interface ClaudeProviderOptions {
+  /** Falls back to process.env.ANTHROPIC_API_KEY when omitted. */
+  readonly apiKey?: string;
+  /** Cost ceiling for the single analysis call. */
+  readonly maxTokens?: number;
+}
+
+/**
+ * The static classification rubric + telemetry-event schema + output contract.
+ * This is the large, STABLE prefix sent as a cached system block so repeated
+ * runs reuse it (spec §5.2 — prompt caching mandatory). Keep this byte-stable:
+ * no timestamps, no per-run data — those go in the user message.
+ */
+export const SYSTEM_PROMPT = `You are the Sentinel run-analyzer's explanation and adjudication layer.
+
+A deterministic rule engine has ALREADY classified an end-to-end test run from its
+structured telemetry. Your job is NOT to re-classify. Your job is to:
+  1. Write a concise, plain-language explanation of what happened in the run,
+     referencing the deterministic verdicts you are given.
+  2. Adjudicate ONLY the verdicts the rules marked "indeterminate": assign each a
+     concrete VerdictKind with a one-line reason grounded in the telemetry.
+  3. NEVER override or contradict a high-confidence rule verdict.
+
+VerdictKind values (use EXACTLY these strings):
+  - "real-bug"          the app behaved wrong with a stable, most-durable locator.
+  - "infra-flake"       transient failure: retry-then-pass, or a retryable timeout/session loss.
+  - "selector-drift"    a locator degraded to a fallback, or was not-found / ambiguous.
+  - "healthy"           success with no degradation.
+  - "business-outcome"  an expected domain result (e.g. INVALID_CREDENTIALS) — NOT a defect.
+  - "indeterminate"     only if you genuinely cannot adjudicate from the evidence.
+
+Telemetry event types you may see (driver-agnostic; already REDACTED):
+  - locator.resolved {logicalName, resolvedKind, resolvedRank, degraded, candidates[]}
+      resolvedRank>0 or degraded:true => the durable locator missed and a fallback won.
+  - assertion {state, matched, locatorRank, branchProgress[]}
+      matched:false && locatorRank===0 && no prior retry => a real defect signal.
+  - retry {attempt, maxAttempts, reason, previousOutcome}
+  - business.failure {domainReason}   the run mechanically succeeded; the domain said no.
+  - system.failure {errorKind, message, retryable, artifactRefs[]}
+  - flow.finished {outcome, terminalReason, didDegrade}
+
+Output contract: you MUST call the tool "report_run_analysis" exactly once. Do not
+write free-text JSON. Provide:
+  - explanation: a short paragraph (no markdown headers).
+  - adjudications: one entry per INDETERMINATE verdict you resolved, each with the
+    matching logicalName and/or eventId and a verdict object whose kind is one of the
+    VerdictKind strings above, a confidence in [0,1], a one-line summary, and an
+    evidence array. Return an empty adjudications array if there were none.`;
+
+/** JSON Schema for the forced tool input — mirrors LlmRunResult (spec §5.1). */
+export const REPORT_TOOL_INPUT_SCHEMA = {
+  type: "object",
+  additionalProperties: false,
+  required: ["explanation", "adjudications"],
+  properties: {
+    explanation: { type: "string" },
+    adjudications: {
+      type: "array",
+      items: {
+        type: "object",
+        additionalProperties: false,
+        required: ["verdict"],
+        properties: {
+          logicalName: { type: "string" },
+          eventId: { type: "string" },
+          verdict: {
+            type: "object",
+            additionalProperties: false,
+            required: ["kind", "confidence", "summary", "evidence"],
+            properties: {
+              kind: {
+                type: "string",
+                enum: [
+                  "real-bug",
+                  "infra-flake",
+                  "selector-drift",
+                  "healthy",
+                  "business-outcome",
+                  "indeterminate",
+                ],
+              },
+              confidence: { type: "number", minimum: 0, maximum: 1 },
+              summary: { type: "string" },
+              logicalName: { type: "string" },
+              evidence: {
+                type: "array",
+                items: {
+                  type: "object",
+                  additionalProperties: false,
+                  required: ["eventId", "type", "detail"],
+                  properties: {
+                    eventId: { type: "string" },
+                    type: { type: "string" },
+                    detail: { type: "string" },
+                    fields: { type: "object" },
+                  },
+                },
+              },
+            },
+          },
+        },
+      },
+    },
+  },
+} as const;
 
 export class ClaudeProvider implements LlmProvider {
+  private readonly client: Anthropic;
+  private readonly maxTokens: number;
+
+  constructor(options: ClaudeProviderOptions = {}) {
+    const apiKey = options.apiKey ?? process.env.ANTHROPIC_API_KEY;
+    if (apiKey === undefined || apiKey === "") {
+      throw new Error(
+        "ClaudeProvider requires an ANTHROPIC_API_KEY (pass apiKey or set the env var).",
+      );
+    }
+    this.client = new Anthropic({ apiKey });
+    this.maxTokens = options.maxTokens ?? 1024;
+  }
+
   analyze(_ctx: AnalysisContext): Promise<LlmRunResult> {
-    throw new Error("ClaudeProvider not implemented until B5");
+    return Promise.reject(new Error("not implemented"));
   }
 }
