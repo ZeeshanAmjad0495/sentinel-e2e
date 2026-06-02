@@ -2,7 +2,7 @@
 import type { Page } from "@playwright/test";
 import type { Credentials } from "../../../src/domain/auth";
 import { env } from "../../../src/config/env";
-import { logIn } from "src/flows";
+import { logIn } from "../../../src/flows";
 
 export type AuthFixtures = Readonly<{
   adminCredentials: Credentials;
@@ -25,10 +25,8 @@ export const authFixtures: Readonly<{
       password: env.adminPassword,
     });
 
-    if (!result.success) {
-      throw new Error(
-        `Admin login failed: ${result.errorMessage ?? "unknown error"}`,
-      );
+    if (result.status !== "success") {
+      throw new Error(`Admin login failed: ${result.message ?? result.reason}`);
     }
   },
 };
