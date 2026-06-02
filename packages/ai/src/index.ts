@@ -6,3 +6,4 @@ export type {
   RunAnalysis,
   TelemetryEvent,
 } from "./analysis";
+export { loadEvents } from "./load";
