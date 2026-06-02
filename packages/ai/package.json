@@ -8,7 +8,6 @@
     "sentinel-analyze": "dist/cli.js"
   },
   "dependencies": {
-    "@sentinel/contracts": "*",
     "@sentinel/core": "*",
     "@anthropic-ai/sdk": "^0.100.1"
   }
