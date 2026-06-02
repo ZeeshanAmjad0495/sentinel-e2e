@@ -255,6 +255,33 @@ test("classify: retryable timeout (not a rank-0 mismatch) is infra-flake", () =>
   expect(c.verdicts.some((v) => v.kind === "real-bug")).toBe(false);
 });
 
+test("classify: rank-0 assertion mismatch + retryable timeout on same span is real-bug, not infra-flake", () => {
+  const span = "span-collision";
+  const a = assertion({
+    name: "dashboard.greeting",
+    spanId: span,
+    matched: false,
+    locatorRank: 0,
+    state: "visible",
+  });
+  const fail = systemFailure({
+    name: "dashboard.greeting",
+    spanId: span,
+    errorKind: "timeout",
+    retryable: true,
+  });
+  const events: TelemetryEvent[] = [
+    a,
+    fail,
+    flowFinished({ outcome: "system-failure" }),
+  ];
+
+  const c = classify(events);
+
+  expect(c.verdicts.some((v) => v.kind === "real-bug")).toBe(true);
+  expect(c.verdicts.some((v) => v.kind === "infra-flake")).toBe(false);
+});
+
 test("classify: business.failure is business-outcome carrying domainReason", () => {
   const bf = businessFailure({
     name: "auth.login",
