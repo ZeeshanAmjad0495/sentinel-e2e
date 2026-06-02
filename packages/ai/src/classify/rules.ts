@@ -3,6 +3,7 @@ import type {
   TelemetryEvent,
   LocatorResolvedEvent,
   FlowFinishedEvent,
+  SystemFailureEvent,
 } from "@sentinel/core";
 import type { RunClassification, RunOutcome } from "../analysis";
 import type { Verdict, Evidence } from "../verdict";
@@ -36,6 +37,22 @@ function driftEvidence(e: LocatorResolvedEvent): Evidence {
   };
 }
 
+const SELECTOR_DRIFT_KINDS: ReadonlySet<SystemFailureEvent["errorKind"]> =
+  new Set(["selector-not-found", "selector-ambiguous"]);
+
+function failureEvidence(e: SystemFailureEvent): Evidence {
+  return {
+    eventId: e.eventId,
+    type: e.type,
+    detail: `'${e.name}': ${e.errorKind} — ${e.message}`,
+    fields: {
+      logicalName: e.name,
+      errorKind: e.errorKind,
+      retryable: e.retryable,
+    },
+  };
+}
+
 /** Pure deterministic classifier. No I/O, no API. Implements spec §4. */
 export function classify(events: readonly TelemetryEvent[]): RunClassification {
   const runId = events[0]?.traceId ?? "";
@@ -63,6 +80,20 @@ export function classify(events: readonly TelemetryEvent[]): RunClassification {
       summary: `Locator '${r.logicalName}' drifted to a rank-${r.resolvedRank} fallback`,
       evidence: [driftEvidence(r)],
       logicalName: r.logicalName,
+      source: "rule",
+    });
+  }
+
+  // §4.2 — selector-not-found / selector-ambiguous system failures are drift
+  for (const e of events) {
+    if (!isType(e, "system.failure")) continue;
+    if (!SELECTOR_DRIFT_KINDS.has(e.errorKind)) continue;
+    verdicts.push({
+      kind: "selector-drift",
+      confidence: 0.9,
+      summary: `Locator '${e.name}' could not be resolved (${e.errorKind})`,
+      evidence: [failureEvidence(e)],
+      logicalName: e.name,
       source: "rule",
     });
   }

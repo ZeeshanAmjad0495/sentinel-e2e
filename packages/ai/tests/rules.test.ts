@@ -116,3 +116,27 @@ test("classify: silent selector-drift on a passing run is surfaced (healthy + dr
   // healthy coexists with the drift warning on a passing degraded run
   expect(c.verdicts.some((v) => v.kind === "healthy")).toBe(true);
 });
+
+test("classify: selector-not-found system failure is selector-drift", () => {
+  const fail = systemFailure({
+    name: "auth.login.username",
+    errorKind: "selector-not-found",
+    message: "no element matched durable locator",
+  });
+  const events: TelemetryEvent[] = [
+    fail,
+    flowFinished({ outcome: "system-failure" }),
+  ];
+
+  const c = classify(events);
+
+  const drift = c.verdicts.find((v) => v.kind === "selector-drift");
+  expect(drift).toBeDefined();
+  expect(drift?.confidence).toBe(0.9);
+  expect(drift?.source).toBe("rule");
+  expect(drift?.logicalName).toBe("auth.login.username");
+  expect(drift?.evidence[0]?.eventId).toBe(fail.eventId);
+  // a not-found drift must NOT be double-classified as infra-flake/real-bug
+  expect(c.verdicts.some((v) => v.kind === "real-bug")).toBe(false);
+  expect(c.verdicts.some((v) => v.kind === "infra-flake")).toBe(false);
+});
