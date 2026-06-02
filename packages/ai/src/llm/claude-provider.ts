@@ -1,5 +1,11 @@
 import Anthropic from "@anthropic-ai/sdk";
-import type { LlmProvider, AnalysisContext, LlmRunResult } from "./provider";
+import type {
+  LlmProvider,
+  AnalysisContext,
+  LlmRunResult,
+  LlmAdjudication,
+} from "./provider";
+import type { Verdict, VerdictKind } from "../verdict";
 
 /** Locked model for the AI run-analyzer (spec D-3 / §5.2). */
 export const CLAUDE_MODEL = "claude-opus-4-8" as const;
@@ -128,7 +134,119 @@ export class ClaudeProvider implements LlmProvider {
     this.maxTokens = options.maxTokens ?? 1024;
   }
 
-  analyze(_ctx: AnalysisContext): Promise<LlmRunResult> {
-    return Promise.reject(new Error("not implemented"));
+  async analyze(ctx: AnalysisContext): Promise<LlmRunResult> {
+    const response = await this.client.messages.create({
+      model: CLAUDE_MODEL,
+      max_tokens: this.maxTokens,
+      system: [
+        {
+          type: "text",
+          text: SYSTEM_PROMPT,
+          cache_control: { type: "ephemeral" },
+        },
+      ],
+      messages: [{ role: "user", content: buildUserMessage(ctx) }],
+      tools: [
+        {
+          name: REPORT_TOOL_NAME,
+          description:
+            "Report the plain-language run explanation and adjudications for the indeterminate verdicts.",
+          input_schema:
+            REPORT_TOOL_INPUT_SCHEMA as unknown as Anthropic.Tool.InputSchema,
+        },
+      ],
+      tool_choice: { type: "tool", name: REPORT_TOOL_NAME },
+    });
+
+    const toolUse = response.content.find(
+      (block): block is Anthropic.ToolUseBlock =>
+        block.type === "tool_use" && block.name === REPORT_TOOL_NAME,
+    );
+    if (toolUse === undefined) {
+      throw new Error(
+        `ClaudeProvider: model did not call ${REPORT_TOOL_NAME} (stop_reason=${response.stop_reason}).`,
+      );
+    }
+    return parseToolInput(toolUse.input);
   }
+}
+
+/** Build the small, VARIABLE per-run user message (after the cached prefix). */
+function buildUserMessage(ctx: AnalysisContext): string {
+  return [
+    `runId: ${ctx.runId}`,
+    `outcome: ${ctx.outcome}`,
+    "deterministic classification (verdicts the rules already decided):",
+    JSON.stringify(ctx.classification.verdicts),
+    "indeterminate verdicts to adjudicate:",
+    JSON.stringify(ctx.classification.indeterminate),
+    "redacted telemetry events:",
+    JSON.stringify(ctx.events),
+  ].join("\n");
+}
+
+const VERDICT_KINDS: readonly VerdictKind[] = [
+  "real-bug",
+  "infra-flake",
+  "selector-drift",
+  "healthy",
+  "business-outcome",
+  "indeterminate",
+];
+
+/** Parse + validate the tool input into an LlmRunResult; stamp source:"llm". */
+function parseToolInput(input: unknown): LlmRunResult {
+  if (typeof input !== "object" || input === null) {
+    throw new Error("ClaudeProvider: tool input was not an object.");
+  }
+  const obj = input as Record<string, unknown>;
+  const explanation = obj.explanation;
+  if (typeof explanation !== "string") {
+    throw new Error("ClaudeProvider: tool input missing string 'explanation'.");
+  }
+  const rawAdjs = Array.isArray(obj.adjudications) ? obj.adjudications : [];
+  const adjudications: LlmAdjudication[] = rawAdjs.map((raw) =>
+    parseAdjudication(raw),
+  );
+  return { explanation, adjudications };
+}
+
+function parseAdjudication(raw: unknown): LlmAdjudication {
+  if (typeof raw !== "object" || raw === null) {
+    throw new Error("ClaudeProvider: adjudication entry was not an object.");
+  }
+  const obj = raw as Record<string, unknown>;
+  const v =
+    typeof obj.verdict === "object" && obj.verdict !== null
+      ? (obj.verdict as Record<string, unknown>)
+      : undefined;
+  if (v === undefined) {
+    throw new Error("ClaudeProvider: adjudication missing 'verdict'.");
+  }
+  const kind = v.kind;
+  if (
+    typeof kind !== "string" ||
+    !VERDICT_KINDS.includes(kind as VerdictKind)
+  ) {
+    throw new Error(`ClaudeProvider: invalid verdict kind '${String(kind)}'.`);
+  }
+  const verdict: Verdict = {
+    kind: kind as VerdictKind,
+    confidence: typeof v.confidence === "number" ? v.confidence : 0,
+    summary: typeof v.summary === "string" ? v.summary : "",
+    evidence: Array.isArray(v.evidence)
+      ? (v.evidence as Verdict["evidence"])
+      : [],
+    ...(typeof v.logicalName === "string"
+      ? { logicalName: v.logicalName }
+      : {}),
+    source: "llm",
+  };
+  return {
+    ...(typeof obj.logicalName === "string"
+      ? { logicalName: obj.logicalName }
+      : {}),
+    ...(typeof obj.eventId === "string" ? { eventId: obj.eventId } : {}),
+    verdict,
+  };
 }
