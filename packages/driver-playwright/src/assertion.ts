@@ -90,8 +90,25 @@ export class PlaywrightAssertion implements Assertion {
 
       // Poll the branch in short slices so a winner elsewhere cancels us promptly.
       while (Date.now() < deadline && winningLabel === null) {
-        const remaining = Math.min(100, deadline - Date.now());
-        const r = await this.runBranch(cond.target, cond.state, remaining);
+        // Floor the slice at 1ms: Playwright treats `timeout: 0` as "disable
+        // timeout" (wait indefinitely), which would let a branch hang past
+        // waitForFirstOf's own deadline and escape the winningLabel latch.
+        const remaining = Math.max(1, Math.min(100, deadline - Date.now()));
+        // Any branch error (e.g. SelectorAmbiguousError) must NOT reject this
+        // promise — it would collapse Promise.all and leak sibling branches as
+        // unhandled rejections. An erroring branch simply never wins; if no
+        // branch wins, the no-winner path below throws TimeoutError. We keep the
+        // best state observed so far so branchProgress stays informative.
+        let r: {
+          matched: boolean;
+          reachedState: ElementState | "none";
+          resolvedRank: number | null;
+        };
+        try {
+          r = await this.runBranch(cond.target, cond.state, remaining);
+        } catch {
+          return { label: cond.label, won: false, reachedState, resolvedRank };
+        }
         resolvedRank = r.resolvedRank;
         reachedState = closest(reachedState, r.reachedState);
         if (r.matched) {
@@ -119,9 +136,10 @@ export class PlaywrightAssertion implements Assertion {
 
     const winner = outcomes.find((o) => o.won);
     if (winner) {
+      const winningCond = conditions.find((c) => c.label === winner.label)!;
       this.emitAssertion(
-        conditions.find((c) => c.label === winner.label)!.target,
-        conditions.find((c) => c.label === winner.label)!.state,
+        winningCond.target,
+        winningCond.state,
         true,
         winner.resolvedRank ?? 0,
         winner.label,
