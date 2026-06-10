@@ -16,6 +16,8 @@
     "paths": {
       "@sentinel/contracts": ["packages/contracts/src/index.ts"],
       "@sentinel/contracts/*": ["packages/contracts/src/*"],
+      "@sentinel/ai": ["packages/ai/src/index.ts"],
+      "@sentinel/ai/*": ["packages/ai/src/*"],
       "@sentinel/core": ["packages/core/src/index.ts"],
       "@sentinel/core/*": ["packages/core/src/*"],
       "@sentinel/driver-playwright": [

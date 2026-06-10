@@ -71,6 +71,15 @@ The only package that imports `@playwright/test`. Implements the contracts for P
 - `PlaywrightAction` — implements `tap`, `typeText`, `clear`, `read` via the resolver.
 - `PlaywrightAssertion` — implements `waitFor` and `waitForFirstOf`. `waitForFirstOf` runs all branches concurrently in short poll slices (a shared winner latch cancels losers without unhandled rejections). On no winner it emits an `assertion` event with the per-branch `BranchProgress` and throws `TimeoutError`. It never resolves on timeout.
 
+### `@sentinel/ai`
+
+The run-analyzer (Slice B). Driver-agnostic — it depends only on the `@sentinel/core` telemetry contract and never imports a driver (enforced by the lint boundary). It reads a run's JSONL telemetry and classifies each failure deterministically, optionally using Claude to explain the run.
+
+- `classify(events)` — a pure, deterministic rule engine that turns telemetry into `Verdict`s: `selector-drift` (a `locator.resolved` degraded to a fallback), `real-bug` (a rank-0 assertion that never matched, with no preceding retry), `infra-flake` (retry-then-pass, or a retryable timeout), `business-outcome` (an expected domain result like `INVALID_CREDENTIALS` — not a defect), `healthy`, or `indeterminate`.
+- `analyzeRun(jsonlPathOrEvents, opts)` — orchestrates load → classify → (optional) LLM → `RunAnalysis`. The LLM layer is **optional and graceful**: with no `ANTHROPIC_API_KEY` it returns a complete rules-only analysis; when a key is present it adds a plain-language explanation and adjudicates only the `indeterminate` cases (it never overrides a rule verdict). The provider sits behind an `LlmProvider` abstraction — a `FakeLlmProvider` for tests, and a lazily-loaded `ClaudeProvider` (`claude-opus-4-8`, prompt caching, forced tool-use). The SDK never loads on the rules-only path.
+- `redactEvents` scrubs secrets — both values under secret-looking keys and secret-shaped values (JWTs, `Bearer` tokens, `sk-`/`ghp_`/`xox*`/`AKIA` key prefixes) — from everything sent to the API, while preserving UUID join-keys. The classification is also routed through redaction before it leaves the process.
+- `sentinel-analyze <run.jsonl> [--json]` (root script: `npm run analyze`) — prints the analysis and exits non-zero only on a `real-bug` verdict.
+
 ### `examples/web-erpnext` (`@sentinel/example-web-erpnext`)
 
 A private example app demonstrating the auth slice on the contracts. It is not a framework package; it is the reference SUT (system under test).
@@ -119,7 +128,7 @@ Every resolved locator and every assertion emits a structured event. The event t
 
 Every event envelope carries `schemaVersion`, `eventId`, `type`, `traceId`, `spanId`, `parentSpanId`, and `sequence`. Stamping happens once in `StampingSink` before fan-out, so the in-memory log and the on-disk JSONL are always identical.
 
-The `CompositeSink([InMemorySink, JsonlSink])` setup in the example app writes one JSONL file per run at `test-results/telemetry/<runId>.jsonl`. This file is the feed for future AI-assisted run analysis.
+The `CompositeSink([InMemorySink, JsonlSink])` setup in the example app writes one JSONL file per run at `test-results/telemetry/<runId>.jsonl`. This file is the feed consumed by the `@sentinel/ai` run-analyzer (above) — `npm run analyze test-results/telemetry/<runId>.jsonl`.
 
 ---
 
@@ -174,6 +183,7 @@ sentinel-e2e/
     contracts/        @sentinel/contracts — zero-dep types
     core/             @sentinel/core — result, errors, telemetry, locator registry
     driver-playwright/ @sentinel/driver-playwright — Playwright adapter
+    ai/               @sentinel/ai — run-analyzer (deterministic rules + optional Claude)
   examples/
     web-erpnext/      @sentinel/example-web-erpnext — auth slice on ERPNext
   docs/               design specs, ADRs
@@ -187,7 +197,7 @@ sentinel-e2e/
 The following are designed for but not yet implemented. They are clearly separated from what is built today.
 
 - **Additional drivers.** Mobile automation via Appium (`appium-uiautomator2`). A second web driver to stress-test the contract boundaries.
-- **AI run-analyzer.** A phase-1 analyzer that consumes the per-run JSONL telemetry files and classifies each failure as real-bug / infra-flake / selector-drift, using the signals already emitted (`resolvedRank > 0` = drift; `previousOutcome = "error"` + eventual pass = flake; `locatorRank = 0` + unmatched = real bug candidate).
+- **AI run-analyzer — cross-run trends.** The phase-1 single-run analyzer is **built** (`@sentinel/ai`, documented above). Still roadmap: correlating multiple runs to detect flaky tests over time (needs a cross-run join key + a run store).
 - **Richer reporting sinks.** Allure, JUnit XML, Slack notifications, HTML dashboard.
 - **CLI.** A `sentinel-cli` for scaffolding new driver adapters, running flows from the command line, and generating report summaries.
 - **Known deferred follow-ups from Slice A design:**
