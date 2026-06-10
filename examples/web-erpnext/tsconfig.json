@@ -1,0 +1,32 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "composite": true,
+    "baseUrl": ".",
+    "outDir": "dist",
+    "types": ["node", "@playwright/test"],
+    // baseUrl is set to "." (this example dir) so that legacy bare imports like
+    // `import { env } from "src/config/env"` keep resolving. That override causes
+    // the root-relative @sentinel/* paths inherited from tsconfig.base.json to
+    // misresolve (e.g. to examples/web-erpnext/packages/...). Re-declare them here
+    // anchored to this file's baseUrl so they point at the real workspace packages.
+    "paths": {
+      "@sentinel/contracts": ["../../packages/contracts/src/index.ts"],
+      "@sentinel/contracts/*": ["../../packages/contracts/src/*"],
+      "@sentinel/core": ["../../packages/core/src/index.ts"],
+      "@sentinel/core/*": ["../../packages/core/src/*"],
+      "@sentinel/driver-playwright": [
+        "../../packages/driver-playwright/src/index.ts"
+      ],
+      "@sentinel/driver-playwright/*": [
+        "../../packages/driver-playwright/src/*"
+      ]
+    }
+  },
+  "references": [
+    { "path": "../../packages/contracts" },
+    { "path": "../../packages/core" },
+    { "path": "../../packages/driver-playwright" }
+  ],
+  "include": ["src/**/*.ts", "tests/**/*.ts", "playwright.config.ts"]
+}
