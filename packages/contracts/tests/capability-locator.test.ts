@@ -61,19 +61,16 @@ test("Locator carries logicalName, ordered candidates and within()", () => {
     candidates: [],
     within: child.within,
   };
+  // A within-less literal also satisfies Locator now that within is OPTIONAL.
+  const plain: Locator = {
+    logicalName: "auth.login.username",
+    candidates: [{ kind: "css", value: "input#login_email" }],
+  };
   expect(child.candidates[0]?.kind).toBe("role");
   // within is OPTIONAL now: guard the call.
   expect(child.within?.(parent)?.logicalName).toBe(
     "auth.card>auth.login.submit",
   );
-});
-
-test("Locator without within still satisfies the contract", () => {
-  const plain: Locator = {
-    logicalName: "auth.login.username",
-    candidates: [{ kind: "css", value: "input#login_email" }],
-  };
-  expect(plain.candidates[0]?.value).toBe("input#login_email");
   expect(plain.within).toBeUndefined();
 });
 

@@ -91,7 +91,10 @@ export class PlaywrightResolver implements LocatorResolver {
     }
 
     const resolveDurationMs = Number(process.hrtime.bigint() - start) / 1e6;
-    const degraded = winner.rank > 0;
+    // Drift = a more-durable candidate the driver TRIED was MISSED (skipped != degraded).
+    const degraded = records.some(
+      (r) => r.outcome === "missed" && r.rank < winner.rank,
+    );
 
     // EMIT BEFORE returning the handle (spec §6/§7 obligation a).
     this.sink.emit({
