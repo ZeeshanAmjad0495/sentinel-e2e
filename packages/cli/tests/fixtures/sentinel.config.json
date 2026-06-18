@@ -1,0 +1,6 @@
+{
+  "telemetryDir": "custom/telemetry",
+  "testDir": "e2e",
+  "runner": "playwright",
+  "playwrightConfig": "config/playwright.config.ts"
+}

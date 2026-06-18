@@ -112,6 +112,49 @@ module.exports = [
     },
   },
   {
+    // DRIVER-AGNOSTIC boundary (slice E): @sentinel/cli source must import NO
+    // driver — neither Playwright/Selenium nor any @sentinel/driver-* package.
+    // The `run` command SHELLS OUT to `npx playwright test`; the CLI never
+    // imports the runner. Tests under packages/cli/tests/** keep the exemption.
+    files: ['packages/cli/src/**/*.ts'],
+    rules: {
+      'no-restricted-imports': [
+        'error',
+        {
+          paths: [
+            {
+              name: '@playwright/test',
+              message:
+                'Playwright is confined to @sentinel/driver-playwright and test-runner dirs.',
+            },
+            {
+              name: 'playwright',
+              message:
+                'Playwright is confined to @sentinel/driver-playwright and test-runner dirs.',
+            },
+            {
+              name: 'selenium-webdriver',
+              message:
+                'Selenium is confined to @sentinel/driver-selenium and test-runner dirs.',
+            },
+          ],
+          patterns: [
+            {
+              group: ['selenium-webdriver', 'selenium-webdriver/*'],
+              message:
+                'Selenium is confined to @sentinel/driver-selenium and test-runner dirs.',
+            },
+            {
+              group: ['@sentinel/driver-*'],
+              message:
+                '@sentinel/cli is driver-agnostic: it depends only on @sentinel/ai + core/contracts and shells out to the project runner, never importing a driver.',
+            },
+          ],
+        },
+      ],
+    },
+  },
+  {
     // Exemption (last match wins): the driver adapter + all test-runner dirs
     // and the Playwright runner config files (test-runner tooling).
     files: [

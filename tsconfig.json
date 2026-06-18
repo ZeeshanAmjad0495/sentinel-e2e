@@ -4,6 +4,7 @@
     { "path": "packages/contracts" },
     { "path": "packages/core" },
     { "path": "packages/ai" },
+    { "path": "packages/cli" },
     { "path": "packages/driver-playwright" },
     { "path": "packages/driver-selenium" },
     { "path": "examples/web-erpnext" }

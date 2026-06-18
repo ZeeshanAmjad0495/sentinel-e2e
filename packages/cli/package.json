@@ -1,0 +1,36 @@
+{
+  "name": "@sentinel/cli",
+  "version": "0.1.0",
+  "type": "commonjs",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "bin": {
+    "sentinel": "dist/cli.js"
+  },
+  "files": [
+    "dist"
+  ],
+  "engines": {
+    "node": ">=20"
+  },
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/ZeeshanAmjad0495/sentinel-e2e.git",
+    "directory": "packages/cli"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "dependencies": {
+    "@sentinel/ai": "^0.1.0",
+    "@sentinel/core": "^0.1.0",
+    "@sentinel/contracts": "^0.1.0"
+  }
+}

@@ -18,6 +18,8 @@
       "@sentinel/contracts/*": ["packages/contracts/src/*"],
       "@sentinel/ai": ["packages/ai/src/index.ts"],
       "@sentinel/ai/*": ["packages/ai/src/*"],
+      "@sentinel/cli": ["packages/cli/src/index.ts"],
+      "@sentinel/cli/*": ["packages/cli/src/*"],
       "@sentinel/core": ["packages/core/src/index.ts"],
       "@sentinel/core/*": ["packages/core/src/*"],
       "@sentinel/driver-playwright": [
