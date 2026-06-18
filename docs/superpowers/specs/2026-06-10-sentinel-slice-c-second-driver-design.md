@@ -1,78 +1,109 @@
 # Sentinel Slice C — Second Driver (`@sentinel/driver-selenium`) + Conformance Suite: Design Spec
 
-- **Status:** Draft for review
+- **Status:** Approved (adversarially-synthesized; supersedes the initial hand-authored draft)
 - **Date:** 2026-06-10
 - **Branch:** `feat/slice-c-second-driver` (off `main`; slices A + B merged)
-- **Scope:** Prove "tool-agnostic" is real by implementing a second web driver behind the unchanged contracts, extract a shared cross-driver conformance suite both drivers must pass, fold in the three deferred contract refinements, and fix the drift-semantics wrinkle that a limited-strategy driver exposes.
+
+> This spec is the synthesis of a 10-agent design workflow (3 verified-research + 3 competing designs + 3 adversarial lenses + synthesis). It is prescriptive enough to also serve as the implementation guide; sub-steps C1–C10 (§10) are executed directly.
 
 ---
 
-## 0. Locked decisions
+# SLICE C — FINAL DESIGN: Second Web Driver + Shared Cross-Driver Conformance Suite
 
-These were taken autonomously per the standing "complete the project" directive, informed by empirically-verified research (selenium-webdriver@4.44.0 + WebdriverIO probed on this machine).
+## (0) Locked decisions
 
-| #   | Decision                                                                                                                             | Rationale                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   |
-| --- | ------------------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| C-1 | **Second driver = `selenium-webdriver`** (not WebdriverIO)                                                                           | The _harshest honest_ proof of tool-agnosticism. selenium has **no auto-wait** (forces the interleaved serial poll loop that slice A's `waitForFirstOf` was explicitly designed to support) and **only css/xpath/id/name/linkText natively** (realistically triggers the drift wrinkle). It exercises both the locator-contract and the wait-contract honesty; WebdriverIO's auto-wait + broad selectors would exercise neither. Verified: Selenium Manager auto-provisions chromedriver (cached, network once ~15s, ~2-4s warm), `--headless=new`, `data:`/`file://` URLs substitute for `setContent`, `findElements → []` (no throw) is the poll primitive, explicit `driver.wait(until…)` throws `TimeoutError`. Node ≥ 20 (repo is 22). |
-| C-2 | **Drift-semantics fix = Option 3** (analyzer infers from `candidates[].outcome`; no contract change) + a one-line resolver alignment | `candidates[]` already carries `matched/missed/skipped` on the wire. Drift = "a more-durable candidate was **missed** (tried, failed), not **skipped** (unsupported)". Zero `LocatorResolvedEvent` schema change → telemetry stays schema-identical across drivers; analyzer stays driver-agnostic; Playwright slice-A/B behavior preserved exactly.                                                                                                                                                                                                                                                                                                                                                                                        |
-| C-3 | **Three contract refinements land in this slice**                                                                                    | Cheapest to do before a second driver multiplies their cost: (a) optional per-action `timeoutMs` on `Action`; (b) `Locator.within` becomes optional (drop the `defineLocator` tax); (c) `@playwright/test` → `peerDependencies` + `devDependencies` in driver-playwright.                                                                                                                                                                                                                                                                                                                                                                                                                                                                   |
-| C-4 | **A shared, parameterized conformance suite** is the durable artifact                                                                | One suite both drivers (and any future Appium driver) instantiate, proving the contract behaviors identically. Skips gracefully when no browser binary is available (like the key-gated Claude test).                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       |
-
----
-
-## 1. Overview & principles
-
-Slice A built the contracts and one driver; slice B proved AI rides the telemetry. Slice C proves the headline claim: a second, deliberately-different driver implements the **unchanged** `@sentinel/contracts` and produces **schema-identical** telemetry the analyzer consumes without modification.
-
-Principles:
-
-1. **Contracts unchanged except the three planned refinements.** If the second driver needs a contract change beyond C-3, that is a leak to surface, not silently shim.
-2. **Schema-identical telemetry.** `@sentinel/driver-selenium` emits the same `locator.resolved` / `assertion` / `flow.finished` envelopes via the same `StampingSink` wiring. The existing JSONL fixture and the analyzer remain valid representations of reality.
-3. **The conformance suite is the source of truth for "a driver is correct."** Behaviors are asserted once, run against every driver.
-4. **Offline by default.** Conformance + auth-on-selenium tests use `data:`/`file://` fixtures — no live app. They **skip gracefully** when no browser/driver is available, so CI without browsers stays green.
-5. **Honest capability advertisement.** selenium advertises only the strategies it can faithfully compile; `role` is **not** advertised (it needs the accessibility tree) — it is recorded `skipped` and falls through to a css fallback. A partial `role` impl would be dishonestly lossy.
+| #   | Decision                                                                                                                                                                                                                            | One-line justification (verified against repo)                                                                                                                                                                                                                                                                                                                                                                                                                                 |
+| --- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| D0  | **Driver #2 = `selenium-webdriver@^4` (`@sentinel/driver-selenium`)** — chosen autonomously                                                                                                                                         | No auto-wait forces _real_ actionability code (exposes Playwright-isms instead of hiding them); `findElements→[]` is the ideal poll primitive; css/xpath-only is the forcing function for the drift fix. WebdriverIO is rejected on hard evidence: `package-wiring.test.ts` documents that dynamic `import()` of a bare specifier throws `SyntaxError` under this repo's TS-source loader, so WDIO-v9-ESM-via-dynamic-import is unproven-to-broken here; selenium is CommonJS. |
+| D1  | **Drift fix = pure-outcome predicate + resolver one-liner; NO event-schema change**                                                                                                                                                 | Keeps `LocatorResolvedEvent` byte-identical for driver #2; analyzer reasons only about `candidates[].outcome`. Verified to keep all locked `rules.test.ts` + `invalid-run.jsonl` cases green. **Reject P3's `baselineRank` field** (it breaks the `locatorResolved` test factory typecheck and makes the jsonl fixture non-representative, for zero analyzer benefit).                                                                                                         |
+| D2  | **Action `timeoutMs` semantics PINNED in the contract**: bounds time-to-**actionable** — located+displayed+enabled for `tap`/`typeText`/`clear`, located (attached) for `read` — clamped to `min(opts.timeoutMs, defaultTimeoutMs)` | The contract has no actionability concept today; without pinning, the same `timeoutMs` would mean different things per driver. Conformance suite asserts it identically on both.                                                                                                                                                                                                                                                                                               |
+| D3  | **`waitForFirstOf` = single interleaved poll loop** (one promise chain) for Selenium                                                                                                                                                | Structurally zero unhandled rejections (no sibling promises to leak); totality met by construction, not by careful loser-cancellation. Conformance suite asserts only observable behavior, never the 1ms-slice/auto-wait internals.                                                                                                                                                                                                                                            |
+| D4  | **Session-adoption seam = additive `existingSession?: unknown` on `SessionConfig`** (not `existingPage` duck-typing)                                                                                                                | `existingPage` is documented "Playwright Page" and the Playwright guard keys on `goto`+`locator`; a future Appium driver has no `get`/page. Additive + backward-compatible; Playwright keeps using `existingPage`, Selenium reads `existingSession ?? existingPage`.                                                                                                                                                                                                           |
+| D5  | **`@playwright/test` → peer+dev dependency** AND **update `package-wiring.test.ts`**                                                                                                                                                | The locked test asserts `dependencies["@playwright/test"]` is truthy — refinement (c) _breaks it_; the test must assert `peerDependencies` instead. (No prior design caught this.)                                                                                                                                                                                                                                                                                             |
+| D6  | **Shared conformance suite** lives at `packages/contracts/tests/conformance/` as a parameterized factory; per-driver thin adapters instantiate it                                                                                   | `packages/**/tests/**` is already lint-exempt; the factory imports `@playwright/test` (runner) + contracts only, never a driver SDK.                                                                                                                                                                                                                                                                                                                                           |
+| D7  | **Browser-driver specs are gated + serialized + long-timeout**                                                                                                                                                                      | Repo has **no `.github/workflows`** and unit config has **no global timeout** + `fullyParallel:true` with no worker cap. Gate via `SENTINEL_SELENIUM=1` (mirroring the verified `ANTHROPIC_API_KEY ? test : test.skip` precedent), `describe.configure({mode:'serial', timeout:60_000})`, teardown in `try/finally`.                                                                                                                                                           |
 
 ---
 
-## 2. Package layout & wiring
+## (1) Overview & principles
+
+Prove "tool-agnostic" is real by running the **unchanged contracts** on a maximally-different second web driver and extracting a **shared conformance suite** both drivers pass. Principles:
+
+1. **Contract honesty** — Selenium implements the literal `Driver`/`Session`/`Action`/`Assertion`/`ElementHandle`/`LocatorResolver` surfaces; any concept the contract lacks (actionability) is _added to the contract_, not invented per-driver.
+2. **Schema identity by construction** — both drivers build telemetry envelopes from the same `@sentinel/core` types through the same `StampingSink`; zero new event fields.
+3. **Analyzer stays driver-agnostic** — it reads `candidates[].outcome`, never driver capabilities; `role` is honestly **skipped** (never faked).
+4. **Refinements folded in now** — cheapest before a 2nd driver multiplies their cost.
+5. **TDD, conventional commits**, all under the existing Playwright unit runner.
+
+---
+
+## (2) Package layout + wiring
+
+### 2.1 New package `packages/driver-selenium/`
 
 ```
-packages/
-  driver-selenium/                       # @sentinel/driver-selenium — ONLY importer of selenium-webdriver
-    package.json   tsconfig.json
-    src/
-      driver.ts            # SeleniumDriver: capabilities, strategies (NO role), createSession (Selenium Manager bootstrap)
-      session.ts           # SeleniumSession: id, StampingSink(SpanContext(id)), locate/action/assert, navigate/currentUrl, end()=quit()
-      strategy-compiler.ts # Sentinel kind -> selenium By (css/xpath templates; throws on unsupported -> caller skips)
-      resolver.ts          # walks candidates, skips unadvertised kinds, findElements()->matched/missed/ambiguous, emits locator.resolved BEFORE handle
-      element.ts           # SeleniumElementHandle, re-resolved per call (no stale WebElement)
-      action.ts            # tap/typeText/clear/read with EXPLICIT actionability waits bounded by timeout (no auto-wait)
-      assertion.ts         # waitFor + waitForFirstOf as a single interleaved poll loop (findElements->[]), throws TimeoutError with BranchProgress
-      index.ts
-    tests/                 # browser-backed; skip when no chromedriver; instantiates the conformance suite
-  conformance/                           # @sentinel/conformance — driver-agnostic shared test suite (dev-only)
-    package.json   tsconfig.json
-    src/
-      suite.ts             # runDriverConformance(opts) — parameterized over a session factory + fixture loader
-      fixtures.ts          # the shared login-like HTML fixtures (string constants reused by both drivers)
-      index.ts
+packages/driver-selenium/
+  package.json  tsconfig.json
+  src/ index.ts driver.ts session.ts resolver.ts element.ts
+       action.ts assertion.ts strategy-compiler.ts actionability.ts
+  tests/ strategy-compiler.test.ts resolver.test.ts assertion-firstof.test.ts
+         action.test.ts package-wiring.test.ts contract.test.ts
 ```
 
-**Dependencies:** `@sentinel/driver-selenium` deps: `selenium-webdriver@^4.44.0` (+ devDep `@types/selenium-webdriver`), `@sentinel/contracts`, `@sentinel/core`. `@sentinel/conformance` deps: `@sentinel/contracts`, `@sentinel/core` (+ `@playwright/test` as the test runner — see lint note). Neither imports the other driver.
+`package.json` (selenium is a real runtime `dependency` — it bundles Selenium Manager; it has no peer story, unlike Playwright-the-test-runner):
 
-**tsconfig:** add both packages to root `tsconfig.json` references and `tsconfig.base.json` `paths` (`@sentinel/driver-selenium`(+`/*`), `@sentinel/conformance`(+`/*`)). `tsconfig.eslint.json` already globs `packages/*/{src,tests}`.
+```jsonc
+{
+  "name": "@sentinel/driver-selenium",
+  "version": "1.0.0",
+  "private": true,
+  "type": "commonjs",
+  "main": "src/index.ts",
+  "types": "src/index.ts",
+  "engines": { "node": ">=20" },
+  "dependencies": {
+    "selenium-webdriver": "^4.44.0",
+    "@sentinel/contracts": "*",
+    "@sentinel/core": "*",
+  },
+  "devDependencies": { "@types/selenium-webdriver": "^4.1.28" },
+}
+```
 
-**ESLint boundary:** add a `no-restricted-imports` block (mirroring the driver-playwright exemption at `eslint.config.cjs:97-110`) so `selenium-webdriver` is allowed only under `packages/driver-selenium/**`, and is **banned** in contracts/core/ai/conformance/driver-playwright. `@sentinel/conformance/src/**` is a test-support module that uses `@playwright/test` (the runner) — add it to the test-runner exemption so the Playwright-import ban doesn't fire there (it imports the runner only, never a driver).
+`tsconfig.json`: extends base, `composite:true`, `references` to contracts+core, `include:["src/**/*.ts"]`.
+
+### 2.2 tsconfig wiring
+
+- **`tsconfig.base.json` `paths`**: add `"@sentinel/driver-selenium": ["packages/driver-selenium/src/index.ts"]` (+ `/*`).
+- **Root `tsconfig.json` `references`**: add `{ "path": "packages/driver-selenium" }`.
+- **`tsconfig.eslint.json`**: no edit (already globs `packages/*/src` + `packages/*/tests`).
+- **`examples/web-erpnext/tsconfig.json`**: add the `@sentinel/driver-selenium` path entries (anchored to `../../packages/...`, like its sibling overrides) so the example Selenium proof test resolves; add the `{ "path": "../../packages/driver-selenium" }` reference.
+
+### 2.3 Lint boundary (`eslint.config.cjs`) — three edits
+
+1. **App-code block** (the `paths` array currently banning `@playwright/test`/`playwright`): add `{ name: 'selenium-webdriver', message: 'Selenium is confined to @sentinel/driver-selenium and test-runner dirs.' }` plus a `patterns: [{ group: ['selenium-webdriver', 'selenium-webdriver/*'], message: ... }]` (catches deep imports like `selenium-webdriver/chrome`).
+2. **`@sentinel/ai/src` block**: add the same `selenium-webdriver` path entry. The existing `patterns: ['@sentinel/driver-*']` already bans `@sentinel/driver-selenium` from the analyzer — no change there.
+3. **Exemption block** (`no-restricted-imports: off`): add `'packages/driver-selenium/**/*.ts'`. (`packages/**/tests/**` already covers the conformance suite + example tests.)
+
+A `package-wiring.test.ts` in the selenium package asserts the barrel exports `SeleniumDriver` and that `selenium-webdriver` is a `dependency`.
 
 ---
 
-## 3. Contract refinements (C-3)
+## (3) Contract refinements — exact diffs
 
-### 3a. Per-action timeout (`packages/contracts/src/action.ts`)
+### (a) `ActionOptions` + actionability semantics — `packages/contracts/src/action.ts`
 
 ```ts
+/**
+ * Per-action bound. `timeoutMs` bounds the time to make the target ACTIONABLE:
+ *  - tap / typeText / clear: located + displayed + enabled
+ *  - read: located (attached)
+ * Effective timeout = min(timeoutMs, SessionConfig.defaultTimeoutMs) — a caller may
+ * only TIGHTEN, never exceed, the session bound. Auto-wait drivers (Playwright) satisfy
+ * this by passing { timeout } to the SDK call; no-auto-wait drivers (Selenium) satisfy it
+ * by polling to that deadline before performing the verb.
+ */
 export interface ActionOptions {
-  /** Upper bound for reaching actionable state; clamped to SessionConfig.defaultTimeoutMs. */
   readonly timeoutMs?: number;
 }
 
@@ -81,45 +112,123 @@ export interface Action {
   typeText(target: Locator, text: string, opts?: ActionOptions): Promise<void>;
   clear(target: Locator, opts?: ActionOptions): Promise<void>;
   read(target: Locator, opts?: ActionOptions): Promise<string>;
-  // gesture methods unchanged (still optional/gated)
+  // gestures unchanged
 }
 ```
 
-- **Playwright impl:** pass `Math.min(opts?.timeoutMs ?? defaultTimeoutMs, defaultTimeoutMs)` as the `timeout` to the underlying pw call (auto-wait already does actionability).
-- **Selenium impl (defines the semantics for a no-auto-wait driver):** "action timeout" = the budget to reach **actionable** state = located ∧ displayed ∧ enabled. Before `click/sendKeys/clear/getText`, `await driver.wait(until.elementIsVisible(el) && elementIsEnabled, t)` with `t = Math.min(opts?.timeoutMs ?? defaultTimeoutMs, defaultTimeoutMs)`; on exceed → `TimeoutError`. This is the explicit answer to "what does an action timeout mean without auto-wait."
-- Existing call sites pass no opts → behavior unchanged.
+Optional ⇒ backward compatible; `LogInForm` compiles unchanged.
 
-### 3b. `Locator.within` optional (`packages/contracts/src/locator.ts`)
+### (b) `Locator.within` optional — `packages/contracts/src/locator.ts`
 
 ```ts
-export interface Locator {
-  readonly logicalName: string;
-  readonly candidates: readonly LocatorStrategy[];
-  readonly minScore?: number;
-  within?(parent: Locator): Locator; // was required; now optional
-}
+within?(parent: Locator): Locator; // OPTIONAL: scoping/chaining when supported
 ```
 
-- Delete the `defineLocator` wrapper in `examples/web-erpnext/src/domain/auth/locators.ts`; locator literals become plain objects (`satisfies Record<string, Locator>` still holds).
-- `packages/contracts/tests/capability-locator.test.ts:65` → guard `child.within?.(parent)` (skip the assertion when absent, or test it on a locator that defines it).
+**Verified safe**: grep shows **zero** `.within(` call sites in any `src`; the only `within` _definitions_ are in the example `locators.ts` (dropped, see §3 example) and the contract test (kept, see §4 test list).
 
-### 3c. `@playwright/test` peerDependency (`packages/driver-playwright/package.json`)
+**Example** — `examples/web-erpnext/src/domain/auth/locators.ts`: delete `defineLocator`; author plain literals. The `locators.test.ts` assertions (logicalName, css fallbacks, invalid candidate order, appShell) are **unaffected** — they read `.logicalName`/`.candidates`, never `.within`:
 
-Move `@playwright/test` from `dependencies` to both `peerDependencies` (`"^1.58.2"`) and `devDependencies` (for the package's own tests). Workspace install still resolves it from the root. The driver-playwright wiring test that asserts the dependency placement updates accordingly.
+```ts
+export const loginLocators = {
+  username: {
+    logicalName: "auth.login.username",
+    candidates: [
+      { kind: "label", value: "Email" },
+      { kind: "css", value: "input#login_email[autocomplete='username']" },
+    ],
+  },
+  password: {
+    logicalName: "auth.login.password",
+    candidates: [
+      { kind: "label", value: "Password" },
+      {
+        kind: "css",
+        value: "input#login_password[autocomplete='current-password']",
+      },
+    ],
+  },
+  submit: {
+    logicalName: "auth.login.submit",
+    candidates: [
+      { kind: "role", value: "button", options: { name: "Login" } },
+      { kind: "css", value: "button.btn-login[type='submit']" },
+    ],
+  },
+  invalid: {
+    logicalName: "auth.login.invalidState",
+    candidates: [
+      {
+        kind: "css",
+        value: ".page-card-body.invalid .btn-login[type='submit']",
+      },
+      { kind: "text", value: "Invalid Login. Try again." },
+    ],
+  },
+} satisfies Record<string, Locator>;
+export const appShellLocators = {
+  ready: {
+    logicalName: "auth.appShell.ready",
+    candidates: [{ kind: "css", value: "div.desktop-wrapper" }],
+  },
+} satisfies Record<string, Locator>;
+```
+
+### (c) `@playwright/test` peer — `packages/driver-playwright/package.json`
+
+```jsonc
+"dependencies": { "@sentinel/contracts": "*", "@sentinel/core": "*" },
+"peerDependencies": { "@playwright/test": "^1.58.2" },
+"devDependencies": { "@playwright/test": "^1.58.2" }
+```
+
+Root devDepends on `@playwright/test@^1.58.2` ⇒ peer satisfied hoisted. **Must-fix (D5)**: `packages/driver-playwright/tests/package-wiring.test.ts` currently asserts `pkg.dependencies?.["@playwright/test"]` — change to `expect(pkg.peerDependencies?.["@playwright/test"]).toBeTruthy()`.
+
+### (d) Session-adoption seam — `packages/contracts/src/session.ts`
+
+```ts
+/** Additive, driver-opaque: a pre-built driver session a driver may ADOPT (e.g. a Selenium
+ *  WebDriver). Preferred over overloading existingPage for non-Page drivers. */
+readonly existingSession?: unknown;
+```
+
+Playwright unchanged (reads `existingPage`). Selenium reads `config.existingSession ?? config.existingPage` and duck-types a `WebDriver` by `findElements`/`get` presence — but via the _dedicated_ field so a Page is never misclassified and a future driver isn't forced through a Page-shaped hole.
+
+### Playwright wiring for (a) — `packages/driver-playwright/src/action.ts` + `session.ts`
+
+`PlaywrightAction` constructor gains `defaultTimeoutMs` (2nd arg). Each verb threads `{ timeout: clamp(opts) }`:
+
+```ts
+constructor(private readonly resolver: LocatorResolver, private readonly defaultTimeoutMs: number) {}
+private clamp(o?: ActionOptions): number { return Math.min(o?.timeoutMs ?? this.defaultTimeoutMs, this.defaultTimeoutMs); }
+async tap(t, opts?)        { await (await this.pwLocator(t)).click({ timeout: this.clamp(opts) }); }
+async typeText(t, x, opts?){ await (await this.pwLocator(t)).fill(x, { timeout: this.clamp(opts) }); }
+async clear(t, opts?)      { await (await this.pwLocator(t)).fill("", { timeout: this.clamp(opts) }); }
+async read(t, opts?)       { const l = await this.pwLocator(t); /* read = attached-only: inputValue/textContent, no visible/enabled gate (matches D2) */ ... }
+```
+
+`session.ts:` `new PlaywrightAction(this.resolver, opts.defaultTimeoutMs)`. **Must-fix**: `action.test.ts` constructs `new PlaywrightAction(new PlaywrightResolver(...))` (one arg) — update to pass a `defaultTimeoutMs` (e.g. `5000`). (Driver-package test, not a contract lock; safe to edit.)
 
 ---
 
-## 4. Drift-semantics fix (C-2)
+## (4) Drift-semantics fix — exact changes, before/after, green proof
 
-### The problem (verified)
+**Rule:** degradation = a more-durable candidate the driver **tried and MISSED** beat the winner; `skipped` (unsupported) never counts.
 
-`resolver.ts:94` computes `degraded = winner.rank > 0` (absolute rank). `rules.ts:129-132` flags drift on `(e.degraded || e.resolvedRank > 0)`. A css/xpath-only driver resolves **everything** at rank 6 with higher-rank kinds `skipped` → today it would flag **every** resolution as `selector-drift` and set `flow.finished.didDegrade` true for every run. That is a false positive that would make the analyzer useless on driver #2.
+### 4.1 Event JSDoc only — `packages/core/src/telemetry/signals.ts` (no type change)
 
-### The fix
+```ts
+resolvedRank: number; // rank of the winning candidate (0 = most durable)
+degraded: boolean;    // a more-durable candidate the driver TRIED was MISSED (skipped != degraded)
+...
+didDegrade: boolean;  // true iff any locator.resolved was `degraded` by the above rule
+```
 
-**Degradation = the resolved candidate was beaten by a more-durable candidate that was tried and `missed` — NOT one that was `skipped` (unsupported).** The data is already on the wire (`candidates[].outcome`).
+### 4.2 Resolver — `packages/driver-playwright/src/resolver.ts:94` (and identical in Selenium resolver)
 
-**Required — `@sentinel/ai/src/classify/rules.ts`:** replace the degradation predicate. A `locator.resolved` event is drift iff:
+**Before:** `const degraded = winner.rank > 0;`
+**After:** `const degraded = records.some((r) => r.outcome === "missed" && r.rank < winner.rank);`
+
+### 4.3 Analyzer — `packages/ai/src/classify/rules.ts` (replace the filter at ~129-134)
 
 ```ts
 function isDrift(e: LocatorResolvedEvent): boolean {
@@ -127,179 +236,232 @@ function isDrift(e: LocatorResolvedEvent): boolean {
     (c) => c.outcome === "missed" && c.rank < e.resolvedRank,
   );
 }
-```
-
-Use `isDrift` for both the per-event `selector-drift` verdicts and the run-level `degraded` aggregate (stop trusting `e.degraded || e.resolvedRank > 0`, and stop trusting `flow.didDegrade` as a drift source — the resolution scan is authoritative).
-
-- css/xpath-only driver: rank-6 win, all higher `skipped` → no `missed` below 6 → **not drift**. ✓
-- Playwright slice-A/B drift (role `missed`@0, css `matched`@6): role missed, rank 0 < 6 → **drift**. ✓ Preserved.
-
-**Optional but recommended — `packages/driver-playwright/src/resolver.ts:94`** (and the new selenium resolver): align the emitted `degraded` boolean so it is honest for limited-strategy drivers:
-
-```ts
-const degraded = records.some(
-  (r) => r.outcome === "missed" && r.rank < winner.rank,
+const degradedResolutions = events.filter(
+  (e): e is LocatorResolvedEvent => isType(e, "locator.resolved") && isDrift(e),
 );
+const degraded = degradedResolutions.length > 0; // DROP `|| flow?.didDegrade`: resolution scan is the sole source of truth
 ```
 
-Behaviorally identical for the locked Playwright resolver tests (role missed@0 beats css matched@6 → true; clean rank-0 win → false), and prevents a misleading `degraded:true` on every css-only event. Both drivers emit the same enriched, honest boolean — schema unchanged.
+Rationale for dropping the `didDegrade` OR (D1, P2's stance): the flow **hardcodes `didDegrade:false`** (`log-in.ts` lines for both branches), so the OR is dead for real runs; dropping it removes the only path by which a future css-only run could re-leak false drift through the flow boolean.
 
-**`flow.finished.didDegrade`:** the example flow currently hardcodes `false` (`log-in.ts`). Leave the field; the analyzer no longer relies on it for drift (the resolution scan is the source of truth). Optionally compute it in the flow from the same missed-below-resolved test if convenient — not required for correctness.
+### 4.4 Before/after — proof the existing 150 tests stay green
 
-### Regression test (the proof)
+| Locked case                                        | candidates                          | old `degraded`/drift                            | new `isDrift`                   | Verdict                              |
+| -------------------------------------------------- | ----------------------------------- | ----------------------------------------------- | ------------------------------- | ------------------------------------ |
+| `rules.test.ts` silent-drift                       | label missed@0, css matched@6       | true / drift                                    | missed@0 < 6 ⇒ **true**         | drift + healthy ✓                    |
+| `rules.test.ts` clean rank-0                       | `[]`, rank 0                        | false                                           | no missed-below ⇒ **false**     | purely healthy, `degraded:false` ✓   |
+| `rules.test.ts` multi-drift                        | 2× (label missed@0, css matched@6)  | true                                            | 2× true                         | business-outcome + 2 drift ✓         |
+| `e2e.test.ts` + `invalid-run.jsonl`                | label missed@0 … css matched@6 (×2) | true                                            | missed@0 < 6 ⇒ true (×2)        | business-outcome + 2 drift ✓         |
+| `resolver.test.ts` "degraded when primary missing" | role missed@0, css matched@6        | `winner.rank>0`⇒true                            | missed@0 < 6 ⇒ **true**         | `resolution.degraded === true` ✓     |
+| `resolver.test.ts` "skips unadvertised"            | image **skipped**, css matched@6    | (rank>0) was true but test only asserts outcome | skipped not missed ⇒ won't flag | asserts `outcome==="skipped"` only ✓ |
 
-Add to `packages/ai/tests/rules.test.ts`: a run whose `locator.resolved` has only `skipped` candidates above a `matched` rank-6 candidate (no `missed`) → assert **no `selector-drift` verdict** and run `degraded:false`. This locks the css-only-driver guarantee. All existing drift tests (role-missed cases) stay green unchanged.
+**Tests that MUST CHANGE and why:** none of the above. The only changed tests are infrastructural (D5 `package-wiring`, action ctor) and **new** tests (below). No assertion in `rules.test.ts`/`resolver.test.ts`/`e2e.test.ts` flips.
+
+### 4.5 NEW regression tests (the fix's proof)
+
+- `rules.test.ts` + **"css-only driver: skipped top candidate is not drift"**: `candidates:[{role,skipped,0},{label,skipped,1},{css,matched,6}]`, `resolvedRank:6`, `flow.finished{success}` ⇒ **no `selector-drift`**, `degraded:false`, `healthy` present.
+- `rules.test.ts` + **"didDegrade alone does not produce a drift verdict"**: `flow.finished{success, didDegrade:true}` with no `locator.resolved` ⇒ no `selector-drift` verdict (locks the outcome-only reasoning).
+- `resolver.test.ts` (selenium) + **"skipped top candidate ⇒ degraded:false"**.
 
 ---
 
-## 5. The selenium driver (`@sentinel/driver-selenium`)
+## (5) The Selenium driver design
 
-### Bootstrap (`driver.ts`)
+### 5.1 Bootstrap & session adoption — `driver.ts` / `session.ts`
 
-`SeleniumDriver`: `name="selenium"`; capabilities `{navigation, dom, screenshot}` (NOT `accessibilityTree` — no role engine; gestures/contexts absent); `strategies = {testid, css, xpath, text, label, placeholder, altText, title}` (**NOT `role`**). `createSession(config, sink)`:
+`SeleniumDriver.createSession(config, telemetry)` adopts `config.existingSession ?? config.existingPage`, duck-typed `isWebDriver = typeof c.findElements === "function" && typeof c.get === "function"`; else throws `DriverSessionError` (mirrors `PlaywrightDriver`). `SeleniumSession` wires telemetry **identically**: `this.telemetry = new StampingSink(new SpanContext(this.id), telemetry)`; `id = config.sessionId ?? randomUUID()`; builds `ctx = {correlationId:this.id, flowName, startedAt}`; constructs resolver/action/assertion with the stamped sink and `defaultTimeoutMs`. `end()` is a no-op (the test owns `driver.quit()` — same lifecycle stance as Playwright's page-wrap).
+
+Advertised sets:
 
 ```ts
-import { Builder, Browser } from "selenium-webdriver";
-import { Options } from "selenium-webdriver/chrome";
-const options = new Options().addArguments(
-  "--headless=new",
-  "--disable-gpu",
-  "--no-sandbox",
-  "--disable-dev-shm-usage",
-  "--window-size=1280,800",
-);
-const driver = await new Builder()
-  .forBrowser(Browser.CHROME)
-  .setChromeOptions(options)
-  .build();
+const STRATEGIES = new Set<StrategyKind>([
+  "css",
+  "xpath",
+  "testid",
+  "text",
+  "label",
+  "placeholder",
+  "altText",
+  "title",
+]); // NOT "role","relative"
+const CAPABILITIES = new Set<Capability>(["navigation", "dom", "screenshot"]); // NOT accessibilityTree/gestures/contexts/networkInspection
 ```
 
-`SessionConfig.existingDriver?` (analogous to `existingPage?`) lets a test/flow pass a pre-built `WebDriver` (the single guarded duck-type/`as` point, throwing `DriverSessionError` on mismatch); otherwise build one. `sessionId` adopted for `Session.id` as in driver-playwright. **Teardown:** `session.end()` calls `driver.quit()` (must run or chromedriver leaks).
+### 5.2 Strategy compiler — pure, returns a `By` descriptor (unit-testable, no browser)
 
-> **Note on `SessionConfig`:** `existingDriver?: unknown` is added alongside `existingPage?: unknown` (both Slice-tool-specific escape hatches). This is a minimal additive contract change in the same spirit as `existingPage`; flagged in §9 open questions in case a single generic `existingHandle?` is preferred.
+Returns `{ using, value }` (structurally Selenium's `By`); a `toBy()` factory wraps it. Defaults to **substring** (Playwright parity) unless `options.exact === true`. `xpathLiteral()` handles embedded quotes via `concat()`; `cssEsc()` escapes `"`/`\`. Throws on any kind not in the table (defense in depth, like Playwright's `default: throw`).
 
-### Strategy compiler (`strategy-compiler.ts`) — kind → `By`
+| kind          | using          | template (exact / substring)                                                |
+| ------------- | -------------- | --------------------------------------------------------------------------- |
+| `css`         | `css selector` | `$v`                                                                        |
+| `xpath`       | `xpath`        | `$v`                                                                        |
+| `testid`      | `css selector` | `[data-testid="$v"]` (always exact)                                         |
+| `placeholder` | `css selector` | `[placeholder="$v"]` / `[placeholder*="$v"]`                                |
+| `title`       | `css selector` | `[title="$v"]` / `[title*="$v"]`                                            |
+| `altText`     | `css selector` | `[alt="$v"]` / `[alt*="$v"]`                                                |
+| `text`        | `xpath`        | `.//*[normalize-space(.)=$lit]` / `.//*[contains(normalize-space(.),$lit)]` |
+| `label`       | `xpath`        | union below                                                                 |
 
-`$v`=value, `$n`=options.name, `$exact`=options.exact (xpath embedded quotes escaped via `concat()` when needed):
+`label` union (for/id + wrapping + aria-label + single-token aria-labelledby), `$m = normalize-space()=$lit` (exact) or `contains(normalize-space(),$lit)`:
 
-| kind          | By            | template                                                                                                                                   |
-| ------------- | ------------- | ------------------------------------------------------------------------------------------------------------------------------------------ |
-| `testid`      | css           | `[data-testid="$v"]`                                                                                                                       |
-| `css`         | css           | `$v`                                                                                                                                       |
-| `xpath`       | xpath         | `$v`                                                                                                                                       |
-| `placeholder` | css           | exact `[placeholder="$v"]`, else `[placeholder*="$v"]`                                                                                     |
-| `altText`     | css           | exact `[alt="$v"]`, else `[alt*="$v"]`                                                                                                     |
-| `title`       | css           | exact `[title="$v"]`, else `[title*="$v"]`                                                                                                 |
-| `text`        | xpath         | exact `.//*[normalize-space(.)="$v"]`, else `.//*[contains(normalize-space(.),"$v")]` (substring default, matching Playwright `getByText`) |
-| `label`       | xpath (union) | `label[for]→#id` ∪ wrapping-label ∪ `[aria-label]` ∪ single-id `aria-labelledby` (multi-token `aria-labelledby` documented gap)            |
-| `role`        | —             | **not advertised** → resolver records `skipped`                                                                                            |
+```
+//input[@id=//label[$m]/@for] | //textarea[@id=//label[$m]/@for] | //select[@id=//label[$m]/@for]
+| //label[$m]//input | //label[$m]//textarea | //label[$m]//select
+| //*[@aria-label=$lit] | //*[@aria-labelledby=//*[$m]/@id]
+```
 
-Compiler throws `UnsupportedStrategyError` for any kind not in the table; the resolver catches "not advertised" _before_ compiling (records `skipped`), so the compiler only ever sees advertised kinds.
+**Note (honest, per analyzer lens):** in the ERPNext example the `label` candidate (rank 1, _supported_) is authored on `username`/`password`. The shared `login-dom.ts` fixtures have **no `<label>`** (only `autocomplete` inputs), so on Selenium `label` legitimately **misses** and css(6) wins ⇒ `isDrift` correctly fires **real** drift for username/password. The **`submit`** locator (role skipped → css matched) is the canonical _no-false-drift_ case. The example proof test (§7) therefore asserts: `submit` has `degraded:false`, and drift on username/password is _expected and correct_ (not a false positive). The no-false-drift guarantee is proven for the skip case, not over-claimed for label-miss.
 
-### Resolver (`resolver.ts`) — schema-identical emission
+### 5.3 Resolver — `SeleniumResolver implements LocatorResolver`
 
-Walk `locator.candidates` in order: kind ∉ `driver.strategies` → record `{kind, outcome:"skipped", rank}`; else compile to `By`, `await driver.findElements(by)` → length 0 = `missed`, 1 = `matched` (winner), >1 = `SelectorAmbiguousError` with `attempted[]`. First `matched` wins. Compute `degraded` per the aligned definition (§4). **Emit `locator.resolved` BEFORE returning the handle**, with `candidates[]`/`resolvedKind`/`resolvedRank`/`degraded`/`resolveDurationMs` (hrtime). All `skipped`/`missed` → `SelectorNotFoundError` with `attempted[]`. Identical event shape to driver-playwright.
+Near-clone of `PlaywrightResolver`: iterate candidates; `!strategies.has(kind)` → `skipped`; else `count = (await driver.findElements(toBy(compileStrategy(c)))).length`; `0`→`missed`, `>1`→`SelectorAmbiguousError`, first match→`matched` winner+break; all miss→`SelectorNotFoundError` with `attempted[]`. Ranks via the **shared `StrategyRegistry`** (globally consistent). Emits a `locator.resolved` envelope with the **identical field set + `schemaVersion:"1.0.0"`** and the 4.2 `degraded` rule, **BEFORE** returning the handle (locked by the resolver test + conformance suite). `SeleniumElementHandle` re-resolves per call via `driver.findElement(toBy(...))` (dodges stale-element; matches Playwright's compile-per-call).
 
-### Actions (`action.ts`) — explicit actionability (no auto-wait)
+### 5.4 Actionability without auto-wait — `actionability.ts` + `action.ts`
 
-Each verb: resolve (emits `locator.resolved`) → re-find the `WebElement` → `await driver.wait(until.elementIsVisible(el), t)` then `elementIsEnabled` (`t` per §3a) → `click()` / `sendKeys(text)` / `clear()` / `getText()`. This is the concrete no-auto-wait actionability the Action timeout governs.
+One shared `waitActionable(driver, by, {requireEnabled, deadline})` polling `findElements` in 50ms slices (absence = not-ready, never an exception, until the deadline → `TimeoutError`). `SeleniumAction` verbs resolve the target (emitting `locator.resolved`, telemetry parity), then `waitActionable` bounded by `clamp(opts)`:
 
-### Assertion (`assertion.ts`) — the interleaved serial poll loop
+- `tap`/`typeText`/`clear`: `requireEnabled:true` (located+displayed+enabled — D2).
+- `read`: attached-only (D2) — tag-aware (`getAttribute("value")` for input/textarea/select, else `getText()`).
 
-`waitFor(target, state, opts)`: poll until deadline — resolve candidates via `findElements` (→`[]`, no throw), check the `ElementState` (`attached` = found; `visible` = `isDisplayed()`; `hidden`/`detached` = negation; `enabled` = `isEnabled()`); on satisfy → emit `assertion{matched:true}` + return; on deadline → emit `assertion{matched:false, branchProgress}` + **throw `TimeoutError`** (never resolve on timeout).
+### 5.5 `waitFor` / `waitForFirstOf` — single interleaved poll loop (D3)
 
-`waitForFirstOf(conditions, opts)`: **one sequential loop** (the design slice A anticipated for serial drivers — zero detached promises, zero unhandled rejections): until deadline, for each condition in order, attempt resolve+state-check via `findElements`; first satisfied → emit the winning `assertion` + return its label; track each branch's closest `reachedState`; on deadline with no winner → emit `assertion` with per-branch `BranchProgress[]` + **throw `TimeoutError`**. Poll slice floored at ≥1ms (mirror the driver-playwright `Math.max(1, …)` guard).
+`waitForFirstOf` round-robins every branch each 50ms tick in **one** promise chain. A branch's error (ambiguous, etc.) is swallowed in a per-branch `try/catch` (never wins, never rejects the loop). First match → emit assertion + return label. Deadline with no winner → emit `matched:false` + `throwTimeout` with `BranchProgress[]` for **all** labels. **Zero unhandled rejections by construction** — there is literally no second promise. `waitFor` = the degenerate one-branch loop. `probeOnce` maps `ElementState`→Selenium checks (`attached`=`findElements>0`, `visible`=`isDisplayed`, `hidden`/`detached`=negations, `enabled`=`isDisplayed && isEnabled`), tracking `reachedState` via the same `STATE_ORDER`/`closest()` ladder so `branchProgress` feeds the analyzer's real-bug rule identically.
 
-### Telemetry wiring
+### 5.6 Telemetry — schema-identical
 
-`SeleniumSession` constructs `new StampingSink(new SpanContext(this.id), sink)` and threads it to resolver/action/assertion — identical to `PlaywrightSession`. Events are schema-identical; the existing analyzer + JSONL fixture remain valid.
+Zero invention. Same `StampingSink` keyed on `session.id` ⇒ `traceId == correlationId == Session.id`. Envelopes constructed field-for-field from `@sentinel/core` `LocatorResolvedEvent`/`AssertionEvent`. Flow events (`flow.started`/`finished`/`business.failure`) come from `log-in.ts` (driver-independent) ⇒ unchanged.
 
 ---
 
-## 6. Shared conformance suite (`@sentinel/conformance`)
+## (6) Shared cross-driver conformance suite
 
-`runDriverConformance(opts)` — a function that registers a `describe` of contract tests, parameterized so any driver instantiates it:
+**Location:** `packages/contracts/tests/conformance/` — `harness.ts`, `fixtures.ts`, `driver-contract.ts` (factory), `playwright.contract.test.ts`, `selenium.contract.test.ts`. The factory imports `@playwright/test` (runner) + contracts only — **never a driver SDK** (the adapters do that, and they're lint-exempt under `packages/**/tests/**`).
+
+**Harness:**
 
 ```ts
-export interface ConformanceOptions {
-  readonly name: string; // "playwright" | "selenium"
-  readonly available: () => boolean | Promise<boolean>; // browser/driver present?
-  /** Build a ready Session over the given fixture HTML, wired to the supplied sink. */
-  readonly makeSession: (
-    html: string,
+export interface DriverHarness {
+  readonly name: string;
+  readonly driver: Driver;
+  open(
+    fixtureUrl: string,
     sink: TelemetrySink,
-  ) => Promise<{ session: Session; cleanup: () => Promise<void> }>;
+    opts?: Partial<SessionConfig>,
+  ): Promise<Session>;
+  close(session: Session): Promise<void>;
 }
-export function runDriverConformance(opts: ConformanceOptions): void;
+export function defineDriverContract(makeHarness: () => DriverHarness): void {
+  /* describes the spec */
+}
 ```
 
-If `!available()` → register the suite with `test.skip` (clean skip, like the key-gated Claude test) so CI without browsers passes. Each driver's test file:
+- **Playwright adapter:** `browser.newPage()` → `page.goto(dataUrl)` → `new PlaywrightDriver().createSession({existingPage:page,...})`; `close=page.close`.
+- **Selenium adapter:** headless Chrome (`--headless=new --no-sandbox --disable-dev-shm-usage --disable-gpu --window-size=1280,800`) → `driver.get(fixtureUrl)` → `new SeleniumDriver().createSession({existingSession:driver,...})`; `close=driver.quit()`. **One WebDriver per file**, reused across tests via `beforeAll`/`afterAll`, re-navigated per test.
+
+**Assertions — ONLY observable contract invariants** (never timing/slice/rank-absolute, per P3 Tradeoff-1 + the contract-honesty must-fix):
+
+1. resolver emits `locator.resolved` **before** the handle is usable (sink empty until `resolve`); `candidates[]` carries matched/missed/skipped.
+2. **drift fix:** unsupported kind ⇒ `skipped`; a `skipped` top candidate falling to a supported match ⇒ `degraded:false`; a _supported_ missed-below ⇒ `degraded:true`.
+3. **totality:** `waitFor` throws `TimeoutError` on a never-appearing element; `waitForFirstOf` returns the winner, and throws `TimeoutError` carrying `BranchProgress[]` for **all** labels when none reachable; **zero unhandled rejections** (`process.on("unhandledRejection")` probe in `beforeEach`/`afterEach`, mirroring `assertion-firstof.test.ts`).
+4. **action:** `typeText`→`read` round-trips; `tap` triggers a DOM effect; `clear` empties; per-action `timeoutMs` honored and **bounded** (requesting `timeoutMs > defaultTimeoutMs` does not extend past `defaultTimeoutMs`).
+5. **capability honesty:** `require(advertised)` ok; `require(unadvertised)` throws `CapabilityUnsupportedError`.
+6. **schema identity:** a shared `expectLocatorResolvedSchema`/`expectAssertionSchema` asserts the exact key set/types on events from **both** harnesses.
+
+**Fixtures (`fixtures.ts`):** `data:text/html,` + `encodeURIComponent(html)` strings consumed identically by both (verified working under Playwright via `page.goto`; Selenium `driver.get('data:...')` confirmed in research). **Determinism (flake must-fix):** resolve/skip/schema groups use elements **present at load** (zero polling); timing-sensitive cases use wide margins (appears-after-200ms vs timeout 3-5s; never-appears for timeout tests).
+
+**Graceful skip (D7):** Selenium adapter wraps the suite in `const seleniumTest = process.env.SENTINEL_SELENIUM ? defineDriverContract : () => test.skip("selenium suite (set SENTINEL_SELENIUM=1)", () => {})`. The Playwright contract suite always runs (browser already provisioned by the runner).
+
+**Expected runtime:** Playwright suite sub-second/test (shared page). Selenium: ~15s cold (one-time chromedriver fetch), ~2-4s warm session create + sub-second/test, whole file ≈ 10-20s warm. `describe.configure({ mode: "serial", timeout: 60_000 })` on the Selenium describe (covers cold start; defeats the parallel-first-download race).
+
+---
+
+## (7) Auth-flow-on-driver-2 proof
+
+`examples/web-erpnext/tests/auth/log-in.selenium.test.ts` (lint-exempt; gated on `SENTINEL_SELENIUM`). Reuses the **existing** `INVALID_DOM` from `tests/_support/login-dom.ts` (its button text is literally `"Invalid Login. Try again."` ⇒ the `invalid` locator's `text` candidate matches deterministically offline). Supplies a Selenium-backed `createSession`; **`page` arg unused** (proving page-agnosticism):
 
 ```ts
-// packages/driver-playwright/tests/conformance.test.ts
-runDriverConformance({
-  name: "playwright",
-  available: () => true,
-  makeSession: async (html, sink) => {
-    /* browser, page.setContent(html), PlaywrightDriver.createSession({existingPage}, sink) */
+const result = await logIn(
+  undefined as never,
+  { username: "u", password: "bad" },
+  {
+    sink,
+    createSession: async (_page, s, sessionId) => {
+      const driver = await buildHeadlessChrome();
+      await driver.get("data:text/html," + encodeURIComponent(INVALID_DOM));
+      return new SeleniumDriver().createSession(
+        { existingSession: driver, defaultTimeoutMs: 3000, sessionId },
+        s,
+      );
+    },
   },
-});
-// packages/driver-selenium/tests/conformance.test.ts
-runDriverConformance({
-  name: "selenium",
-  available: hasChromedriver,
-  makeSession: async (html, sink) => {
-    /* driver.get("data:text/html,"+encodeURIComponent(html)); SeleniumDriver.createSession({existingDriver}, sink) */
-  },
-});
+);
+expect(result.kind).toBe("business-failure");
+const c = classify(sink.events);
+expect(c.outcome).toBe("business-failure");
+expect(c.verdicts.some((v) => v.kind === "business-outcome")).toBe(true);
+// submit (role skipped → css matched) contributes NO false drift:
+const submitResolve = sink.events.find(
+  (e) => e.type === "locator.resolved" && e.logicalName === "auth.login.submit",
+);
+expect((submitResolve as LocatorResolvedEvent).degraded).toBe(false);
+// teardown
 ```
 
-**Asserted behaviors** (driver-agnostic, against `fixtures.ts` HTML + an injected `InMemorySink`): resolver emits `locator.resolved` **before** the handle is usable; `skipped` for unadvertised kinds vs `missed` for absent supported kinds; resolved candidate trail + `degraded` per §4; `waitFor` throws `TimeoutError` (never resolves) on a missing element; `waitForFirstOf` returns the reachable branch's label and, on no winner, throws `TimeoutError` with `BranchProgress[]` and **zero unhandled rejections**; `tap`/`typeText`/`clear`/`read` operate; telemetry envelopes are schema-identical (same event types/fields). The selenium run additionally demonstrates the §4 guarantee: a `role`-first locator with a css fallback resolves via css **without** a drift verdict (role was `skipped`, not `missed`).
-
-**Fixtures** (`fixtures.ts`): shared login-like HTML with **proper `<label for>` associations** (so `label` compiles and resolves on selenium, not just css fallback), a `.page-card-body.invalid` state, and a `div.desktop-wrapper` app shell — reused by both drivers (Playwright via `setContent`, selenium via `data:` URL). Runtime budget: selenium ~2-4s/session warm; use one session per `describe` where possible; total suite added wall-clock target < ~30s warm.
+The flow logic, `LogInForm`, `loginLocators` are **untouched** — same `typeText`/`tap`/`waitForFirstOf` drive Selenium. A second success-path variant using `LOGIN_DOM` asserts `result.kind === "ok"` + `healthy`. The example flow's `defaultCreateSession` keeps `existingPage` (Playwright path unchanged).
 
 ---
 
-## 7. Auth-flow-on-selenium proof
+## (8) Testing strategy + acceptance criteria
 
-Demonstrate the **same** `logIn` flow logic runs on selenium via the existing `opts.createSession` seam: a test builds a `SeleniumDriver` session over a `data:`-loaded login fixture and calls `logIn(driverHandle, creds, { createSession: seleniumCreateSession, sink })`, asserting it returns the rich `LoginResult` and emits schema-identical telemetry. This is the headline proof: unchanged flow + unchanged contracts + a completely different driver. (Skips when no chromedriver.)
+**TDD / commit order = §10.** Run `npm run test:unit` (Playwright runner over `packages/**/tests/**`), `npm run typecheck` (`tsc -b`), `npm run lint`.
 
-> The flow signature is `logIn(page, …)`; the `page` parameter is the caller-supplied driver handle threaded into `createSession`. If the parameter name/typing needs generalizing from `Page` to `unknown`/a handle type for the selenium path, that is a small, expected generalization — captured in the sub-steps.
+Acceptance (numbered, runnable):
 
----
-
-## 8. Testing strategy & acceptance criteria
-
-1. `npm run typecheck` 0; `npm run lint` 0 (selenium import confined to `packages/driver-selenium/**`; conformance uses only the runner).
-2. `npm run test:unit` green: the **existing 150 tests stay green** (the drift-fix preserves Playwright behavior — name any that change: only the new `rules.test.ts` regression case is added; the resolver `degraded` alignment must keep `resolver.test.ts` green), plus the new selenium unit tests + the conformance suite for **both** drivers + the auth-on-selenium proof.
-3. **Drift-fix proof:** the css-only-style regression test (only-`skipped`-above-`matched` → no drift) passes; the existing role-missed drift tests pass unchanged.
-4. **Graceful skip:** with no chromedriver available, the selenium conformance + auth-on-selenium tests `skip` (not fail); CI stays green. With chromedriver (Selenium Manager auto-provisions; network once), they run and pass.
-5. **Contract refinements:** action `timeoutMs` honored by both drivers; `defineLocator` removed and locators are plain literals; `@playwright/test` is a peerDep (+devDep) and the wiring test reflects it.
-6. **Conformance parity:** both drivers pass the identical suite; telemetry schema identity asserted.
-
----
-
-## 9. Residual risks & deferred
-
-- **Selenium flake / browser provisioning:** mitigated by one-session-per-describe, explicit waits, `quit()` teardown, and graceful skip when absent. First local run needs network (~15s chromedriver fetch); cached after.
-- **`label` xpath emulation gap:** multi-token `aria-labelledby` not supported (documented); covers the example's plain-`<label>` forms.
-- **`existingDriver?` additive to `SessionConfig`** — see §9 open question (generic handle vs per-driver field).
-- **`role` unsupported on selenium** is by design (honest skip), not a gap to fix.
-- **Deferred (not this slice):** WebdriverIO as a third driver; Appium/mobile; the `@sentinel/ai` merge-by-key reconciliation; cross-run flake trends; reporting sinks; CLI scaffolding.
-
-## 9b. Open questions for the user
-
-1. **`existingDriver?` vs generic `existingHandle?`:** add a selenium-specific `existingDriver?: unknown` to `SessionConfig` (mirrors `existingPage?`), or refactor both into one generic `existingHandle?: unknown`? _Default:_ add `existingDriver?` (minimal, consistent with the existing `existingPage?` precedent).
-2. **`logIn(page, …)` parameter generalization:** rename the first param's type from `Page` to `unknown`/a handle alias for the selenium path? _Default:_ widen the type to `unknown` (the driver duck-types it), keep the name `page` for call-site stability or rename to `handle` — minor.
+1. `npm run test:unit` green: **all pre-existing tests pass unchanged** except `package-wiring.test.ts` (asserts `peerDependencies`) and `action.test.ts` (ctor arg) — both intentional infra edits.
+2. New `rules.test.ts` css-only regression: skipped-top ⇒ no `selector-drift`, `degraded:false`, `healthy`; `didDegrade:true`-alone ⇒ no drift verdict; a `role missed@0 + css matched@6` case still flags `selector-drift`.
+3. `SENTINEL_SELENIUM=1 npm run test:unit`: Selenium compiler tests (browserless), resolver/action/assertion behavioral tests, and **`defineDriverContract` green for BOTH harnesses** with identical assertions; schema-identity helper passes on both.
+4. The Selenium example proof: `logIn` ⇒ deterministic `business-failure` (and `ok` variant) with `page` unused; `classify()` agrees; `submit.degraded === false`.
+5. `npm run typecheck` green (new path mappings + references).
+6. `npm run lint --max-warnings=0` green: `selenium-webdriver` importable only under `packages/driver-selenium/**` + test dirs; `@sentinel/ai/src` imports no driver.
+7. Per-action `timeoutMs` honored + clamped on both drivers (conformance group 4).
+8. Zero unhandled rejections on both drivers (conformance group 3 probe).
+9. New `.github/workflows/ci.yml` runs `typecheck`/`lint`/`test:unit` always, and a **separate opt-in job** sets `SENTINEL_SELENIUM=1`, pins chromedriver to the runner's Chrome major, and is **not** required to merge (isolates the unverified-CI risk).
 
 ---
 
-## 10. Ordered implementation sub-steps
+## (9) Residual risks + explicitly deferred
 
-1. **C1 — Contract refinements + drift-semantics fix (no new driver yet).** `ActionOptions` + per-action `timeoutMs` (contracts + PlaywrightAction clamp); `Locator.within` optional + drop `defineLocator`; `@playwright/test` peerDep; the §4 `rules.ts` `isDrift` change + resolver `degraded` alignment + the regression test. Acceptance: existing 150 tests green (modulo the named additions), typecheck/lint green. **This sub-step changes shared code only — the riskiest for regressions, so it gets the full two-stage review.**
-2. **C2 — `@sentinel/driver-selenium` package skeleton + wiring** (package.json, tsconfig, root refs, paths, eslint selenium-import boundary, `export {}` seed, `@types/selenium-webdriver`). Acceptance: tsc -b + lint green; `npm install` resolves selenium.
-3. **C3 — strategy-compiler** (kind → `By`, the §5 table) + pure unit tests (no browser): assert generated css/xpath strings per kind/exact; `role`/unknown → throws/unsupported.
-4. **C4 — resolver + element + telemetry emission** (skipped/missed/matched/ambiguous, emit-before-handle, `degraded` per §4) — browser-backed tests, skip-when-absent.
-5. **C5 — actions + assertion serial poll loop** (explicit actionability; `waitFor`/`waitForFirstOf` totality, throws on timeout, zero unhandled rejections) — browser-backed.
-6. **C6 — `@sentinel/conformance` suite + fixtures**; instantiate for driver-playwright (proves the suite passes the already-trusted driver) **and** driver-selenium; assert schema identity + the §4 selenium drift guarantee.
-7. **C7 — auth-flow-on-selenium proof** + final acceptance (§8).
+**Residual (mitigated):**
+
+- **Chromedriver provisioning** — cold ~15s network fetch; mitigated by serial describe + 60s timeout + cache (`~/.cache/selenium`) + CI pin. Gated, so a no-browser machine **skips** (D7), never red.
+- **Zombie processes** — teardown in `try/finally` per adapter + `afterAll`; CI job has a process-cleanup step.
+- **Selenium WebDriver round-trip cost** of per-call element re-resolution — bounded by offline `data:` fixtures (no network in the hot path) and one session per file.
+- **label-miss "drift" on username/password** in the Selenium example — _correct_ behavior, documented and asserted as expected (not a false positive); the no-false-drift guarantee is scoped to the `skipped` case.
+
+**Explicitly deferred:**
+
+- Appium / third driver — but the seam is Appium-ready: `existingSession` is page-shape-free (D4); `role`/`accessibilityTree` skip semantics already covered; the conformance suite supplies fixtures **per-harness** so css/DOM is never assumed universal. No css/navigation is baked into the refined `Action`/`Assertion`/drift design.
+- Selenium `role` support (would need an a11y-tree shim) — honestly omitted.
+- Real ERPNext server runs on Selenium — offline fixtures only this slice.
+- `relative` strategy on Selenium.
+
+---
+
+## (10) Ordered implementation sub-steps (each with its acceptance gate)
+
+- **C1** `refactor(contracts): Action timeoutMs + ActionOptions + within optional + existingSession` — diffs §3a/b/d. Wire `PlaywrightAction(resolver, defaultTimeoutMs)` + clamp; update `session.ts`; update `action.test.ts` ctor; update `capability-locator.test.ts` (guard `child.within?.(parent)?.logicalName` + add a `within`-less literal that satisfies `Locator`). **Gate:** `test:unit` + `typecheck` green.
+- **C2** `refactor(examples): drop defineLocator` — plain literals §3. **Gate:** `locators.test.ts` + example tests green.
+- **C3** `chore(driver-playwright): @playwright/test peerDependency` + update `package-wiring.test.ts` to assert `peerDependencies`. **Gate:** `test:unit` + a clean `npm install` (peer satisfied at root).
+- **C4** `fix(resolver,ai): drift = missed-below-winner; analyzer reads candidates[].outcome` — §4.1-4.3 + new regression tests §4.5. **Gate:** all locked `rules`/`resolver`/`e2e` tests green + new regressions green.
+- **C5** `feat(driver-selenium): scaffold + strategy-compiler` — package, tsconfig/eslint/base wiring §2; pure compiler unit tests (kind→`{using,value}`, exact/substring, xpath quote-escaping, unsupported throws), **no browser**. **Gate:** `test:unit` + `typecheck` + `lint` green (boundary holds).
+- **C6** `feat(driver-selenium): resolver + element + actionability` — §5.3-5.4; behavioral tests on warm headless Chrome incl. skipped-top ⇒ `degraded:false`. **Gate:** `SENTINEL_SELENIUM=1 test:unit` green.
+- **C7** `feat(driver-selenium): action + assertion (interleaved waitForFirstOf)` — §5.5; port the four firstof behaviors + unhandled-rejection probe. **Gate:** Selenium firstof tests green, zero unhandled rejections.
+- **C8** `test(conformance): shared cross-driver suite` — §6 factory + both adapters + graceful skip. **Gate:** suite green for Playwright always, and for Selenium under `SENTINEL_SELENIUM=1`; schema-identity helper passes on both.
+- **C9** `test(examples): auth flow on Selenium offline via createSession` — §7. **Gate:** `business-failure` + `ok` variants green; `classify()` agrees; `submit.degraded===false`.
+- **C10** `ci: add workflow with always-on (typecheck/lint/test:unit) + opt-in Selenium job (pinned chromedriver, non-required)` — §8.9. **Gate:** workflow runs; default job green; Selenium job isolated/non-blocking.
+
+---
+
+Files touched (absolute): **New** — `/Users/zeeshan.amjad/Documents/sentinel-e2e/packages/driver-selenium/**`; `/Users/zeeshan.amjad/Documents/sentinel-e2e/packages/contracts/tests/conformance/{harness,fixtures,driver-contract,playwright.contract.test,selenium.contract.test}.ts`; `/Users/zeeshan.amjad/Documents/sentinel-e2e/examples/web-erpnext/tests/auth/log-in.selenium.test.ts`; `/Users/zeeshan.amjad/Documents/sentinel-e2e/.github/workflows/ci.yml`. **Edited** — `/Users/zeeshan.amjad/Documents/sentinel-e2e/packages/contracts/src/{action,locator,session}.ts`; `/Users/zeeshan.amjad/Documents/sentinel-e2e/packages/contracts/tests/capability-locator.test.ts`; `/Users/zeeshan.amjad/Documents/sentinel-e2e/packages/core/src/telemetry/signals.ts` (JSDoc only); `/Users/zeeshan.amjad/Documents/sentinel-e2e/packages/driver-playwright/src/{resolver,action,session}.ts`; `/Users/zeeshan.amjad/Documents/sentinel-e2e/packages/driver-playwright/package.json`; `/Users/zeeshan.amjad/Documents/sentinel-e2e/packages/driver-playwright/tests/{package-wiring,action}.test.ts`; `/Users/zeeshan.amjad/Documents/sentinel-e2e/packages/ai/src/classify/rules.ts`; `/Users/zeeshan.amjad/Documents/sentinel-e2e/packages/ai/tests/rules.test.ts`; `/Users/zeeshan.amjad/Documents/sentinel-e2e/examples/web-erpnext/src/domain/auth/locators.ts`; `/Users/zeeshan.amjad/Documents/sentinel-e2e/examples/web-erpnext/tsconfig.json`; `/Users/zeeshan.amjad/Documents/sentinel-e2e/eslint.config.cjs`; `/Users/zeeshan.amjad/Documents/sentinel-e2e/tsconfig.base.json`; `/Users/zeeshan.amjad/Documents/sentinel-e2e/tsconfig.json`.
+
+Key repo-verified corrections over P1/P2/P3: (1) **`package-wiring.test.ts` asserts `@playwright/test` in `dependencies`** — refinement (c) breaks it; it must change to `peerDependencies` (no prior design caught this). (2) **`action.test.ts` builds `new PlaywrightAction(resolver)` one-arg** — adding `defaultTimeoutMs` requires editing it. (3) **Dynamic `import()` of bare specifiers is documented-broken** in this TS-source loader (`package-wiring.test.ts` comment) — kills WebdriverIO-ESM; Selenium (CJS) chosen. (4) **No `.github/workflows` exists** — CI is added as opt-in, not assumed. (5) Rejected P3's `baselineRank` (breaks the `locatorResolved` test factory typecheck, zero analyzer benefit). (6) Used **`existingSession`** (additive) over `existingPage` duck-typing for Appium-readiness. (7) Confirmed **zero `.within(` call sites** so the optionality + `defineLocator` drop is safe; (8) the example's `login-dom.ts` `INVALID_DOM`/`LOGIN_DOM` fixtures are directly reusable for the offline Selenium proof.
