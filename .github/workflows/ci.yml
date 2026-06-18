@@ -48,9 +48,9 @@ jobs:
   # Opt-in Selenium job — NOT required to merge. Isolates the unverified-CI /
   # cold-start-flake risk of the browser-backed Selenium suite. `continue-on-
   # error: true` makes its conclusion non-blocking. On GitHub-hosted runners
-  # Chrome is preinstalled and Selenium Manager auto-provisions a matching
-  # chromedriver; we additionally pin chromedriver to the runner's Chrome major
-  # for determinism. Setting SENTINEL_SELENIUM=1 activates the gated specs.
+  # Chrome is preinstalled and Selenium Manager (bundled with selenium-webdriver
+  # 4.x) auto-provisions a matching chromedriver at runtime — no setup action
+  # needed. Setting SENTINEL_SELENIUM=1 activates the gated specs.
   # ---------------------------------------------------------------------------
   selenium:
     name: selenium suite (opt-in, non-blocking)
@@ -73,10 +73,5 @@ jobs:
       - name: Install Playwright chromium (+ OS deps)
         run: npx playwright install --with-deps chromium
 
-      - name: Pin chromedriver to the runner's Chrome major
-        uses: browser-actions/setup-chromedriver@v2
-        with:
-          chrome-version: stable
-
-      - name: Unit tests with Selenium (SENTINEL_SELENIUM=1)
+      - name: Unit tests with Selenium (SENTINEL_SELENIUM=1; Selenium Manager auto-provisions chromedriver)
         run: npm run test:unit
