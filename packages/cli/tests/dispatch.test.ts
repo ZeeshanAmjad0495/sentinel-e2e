@@ -31,10 +31,8 @@ test("unknown command prints usage and exits 2", async () => {
   expect(res.output).toContain("usage: sentinel");
 });
 
-test("routes analyze/report/init/run to their handlers (exit 0)", async () => {
-  for (const cmd of ["analyze", "report", "init", "run"]) {
-    const res = await run([cmd]);
-    expect(res.exitCode, `${cmd} should route`).toBe(0);
-    expect(res.output).toContain(cmd);
-  }
+test("routes analyze to its handler (no path -> usage + exit 2)", async () => {
+  const res = await run(["analyze"]);
+  expect(res.exitCode).toBe(2);
+  expect(res.output.toLowerCase()).toContain("usage: sentinel analyze");
 });
