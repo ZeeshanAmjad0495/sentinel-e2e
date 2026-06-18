@@ -1,3 +1,4 @@
+#!/usr/bin/env node
 // packages/ai/src/cli.ts
 import { analyzeRun } from "./analyze";
 import { toJson, toText } from "./render";
