@@ -36,3 +36,9 @@ test("routes analyze to its handler (no path -> usage + exit 2)", async () => {
   expect(res.exitCode).toBe(2);
   expect(res.output.toLowerCase()).toContain("usage: sentinel analyze");
 });
+
+test("routes run to its handler (--dry-run -> command + exit 0)", async () => {
+  const res = await run(["run", "--dry-run"]);
+  expect(res.exitCode).toBe(0);
+  expect(res.output).toContain("playwright test");
+});
