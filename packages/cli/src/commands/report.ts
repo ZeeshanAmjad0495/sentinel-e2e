@@ -1,15 +1,14 @@
 // packages/cli/src/commands/report.ts
 import * as fs from "node:fs";
-import * as path from "node:path";
-import { analyzeRun } from "@sentinele2e/ai";
-import type { RunAnalysis, VerdictKind } from "@sentinele2e/ai";
+import { buildReport } from "@sentinele2e/ai";
+import type { RunReport, VerdictKind } from "@sentinele2e/ai";
 import type { CliResult } from "../dispatch";
 import { loadConfig } from "../config";
-import {
-  REPORT_SCHEMA_VERSION,
-  type RunReport,
-  type RunSummary,
-} from "../report-model";
+
+// Slice F (F1): buildReport + the RunReport contract moved into @sentinele2e/ai
+// (single source of truth shared with the dashboard). Re-export buildReport so
+// existing CLI imports (`import { reportCommand, buildReport }`) resolve.
+export { buildReport };
 
 const VERDICT_KINDS: readonly VerdictKind[] = [
   "real-bug",
@@ -19,84 +18,6 @@ const VERDICT_KINDS: readonly VerdictKind[] = [
   "business-outcome",
   "indeterminate",
 ];
-
-function emptyCounts(): Record<VerdictKind, number> {
-  return {
-    "real-bug": 0,
-    "infra-flake": 0,
-    "selector-drift": 0,
-    healthy: 0,
-    "business-outcome": 0,
-    indeterminate: 0,
-  };
-}
-
-/** Roll one run's analysis up into a RunSummary. */
-function summarize(file: string, analysis: RunAnalysis): RunSummary {
-  const verdictCounts = emptyCounts();
-  const drifting = new Set<string>();
-  for (const v of analysis.verdicts) {
-    verdictCounts[v.kind] += 1;
-    if (v.kind === "selector-drift" && v.logicalName) {
-      drifting.add(v.logicalName);
-    }
-  }
-  return {
-    runId: analysis.runId,
-    file: path.basename(file),
-    outcome: analysis.outcome,
-    verdictCounts,
-    driftingLocators: [...drifting].sort(),
-    hasRealBug: verdictCounts["real-bug"] > 0,
-  };
-}
-
-/**
- * Aggregate every `*.jsonl` in `dir` into a RunReport. Each run is classified
- * with the deterministic analyzer ({provider:null}). The totals.<kind> fields
- * count how many RUNS contain at least one verdict of that kind (run-level
- * signal), distinct from per-run `verdictCounts` (verdict-level).
- */
-export async function buildReport(dir: string): Promise<RunReport> {
-  const files = fs
-    .readdirSync(dir)
-    .filter((f) => f.endsWith(".jsonl"))
-    .sort()
-    .map((f) => path.join(dir, f));
-
-  const runs: RunSummary[] = [];
-  for (const file of files) {
-    const analysis = await analyzeRun(file, { provider: null });
-    runs.push(summarize(file, analysis));
-  }
-
-  const drifting = new Set<string>();
-  const totals = {
-    runs: runs.length,
-    realBug: 0,
-    infraFlake: 0,
-    selectorDrift: 0,
-    healthy: 0,
-    businessOutcome: 0,
-    driftingLocators: [] as string[],
-  };
-  for (const r of runs) {
-    if (r.verdictCounts["real-bug"] > 0) totals.realBug += 1;
-    if (r.verdictCounts["infra-flake"] > 0) totals.infraFlake += 1;
-    if (r.verdictCounts["selector-drift"] > 0) totals.selectorDrift += 1;
-    if (r.verdictCounts.healthy > 0) totals.healthy += 1;
-    if (r.verdictCounts["business-outcome"] > 0) totals.businessOutcome += 1;
-    for (const loc of r.driftingLocators) drifting.add(loc);
-  }
-  totals.driftingLocators = [...drifting].sort();
-
-  return {
-    schemaVersion: REPORT_SCHEMA_VERSION,
-    generatedFrom: dir,
-    runs,
-    totals,
-  };
-}
 
 /** Human-readable run table + totals footer. */
 function renderText(report: RunReport): string {

@@ -14,6 +14,13 @@ test("barrel exports the deterministic public surface", () => {
   expect(surface.ANALYSIS_SCHEMA_VERSION).toBe("1.0.0");
 });
 
+test("barrel exports the run-report contract (slice F: buildReport + redactText)", () => {
+  const surface = ai as Record<string, unknown>;
+  expect(typeof surface.buildReport).toBe("function");
+  expect(typeof surface.redactText).toBe("function");
+  expect(surface.REPORT_SCHEMA_VERSION).toBe("1.0.0");
+});
+
 test("barrel does NOT re-export ClaudeProvider (keeps the SDK lazy)", () => {
   const surface = ai as Record<string, unknown>;
   expect(surface.ClaudeProvider).toBeUndefined();

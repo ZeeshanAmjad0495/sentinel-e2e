@@ -3,8 +3,10 @@ export type { VerdictKind, Verdict, Evidence } from "./verdict";
 export type { RunOutcome, RunClassification, RunAnalysis } from "./analysis";
 export { ANALYSIS_SCHEMA_VERSION } from "./analysis";
 export { loadEvents } from "./load";
-export { redactEvents } from "./redact";
+export { redactEvents, redactText } from "./redact";
 export { classify } from "./classify";
+export type { RunReport, RunSummary } from "./report";
+export { REPORT_SCHEMA_VERSION, buildReport } from "./report";
 export type {
   AnalysisContext,
   LlmAdjudication,

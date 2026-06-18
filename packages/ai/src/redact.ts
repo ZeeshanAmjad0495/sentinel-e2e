@@ -33,6 +33,18 @@ function redactSecretShapes(value: string): string {
   return out;
 }
 
+/**
+ * Public, single-string secret scrubber: scrubs unambiguous secret SHAPES
+ * (JWT / Bearer / sk- / ghp_ / xox*- / AKIA...) from a freeform string,
+ * preserving UUIDs, selectors and prose. A thin wrapper over the private
+ * `redactSecretShapes` so consumers (e.g. the slice-F dashboard) can scrub
+ * evidence/explanation free-text before embedding. Same narrow, value-shape
+ * limitation as `redactEvents`.
+ */
+export function redactText(value: string): string {
+  return redactSecretShapes(value);
+}
+
 function redactValue(value: unknown): unknown {
   if (typeof value === "string") {
     return redactSecretShapes(value);
