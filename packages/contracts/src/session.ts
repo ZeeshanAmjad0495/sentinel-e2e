@@ -43,4 +43,7 @@ export interface SessionConfig {
   readonly sessionId?: string;
   /** Slice-A only: wrap a pre-navigated Playwright Page so logIn(page,...) stays working. */
   readonly existingPage?: unknown;
+  /** Additive, driver-opaque: a pre-built driver session a driver may ADOPT (e.g. a Selenium
+   *  WebDriver). Preferred over overloading existingPage for non-Page drivers. */
+  readonly existingSession?: unknown;
 }

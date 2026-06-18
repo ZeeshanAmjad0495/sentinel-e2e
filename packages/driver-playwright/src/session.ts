@@ -65,7 +65,7 @@ export class PlaywrightSession implements Session {
       this.telemetry,
       ctx,
     );
-    this.action = new PlaywrightAction(this.resolver);
+    this.action = new PlaywrightAction(this.resolver, opts.defaultTimeoutMs);
     this.assert = new PlaywrightAssertion(
       page,
       this.resolver,
