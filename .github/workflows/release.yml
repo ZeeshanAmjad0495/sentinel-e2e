@@ -1,0 +1,61 @@
+name: Release
+
+# Cut a release by pushing a tag, e.g. `git tag v0.1.0 && git push origin v0.1.0`.
+# Always: build + pack the publishable packages and attach the tarballs to the
+# GitHub Release. Optionally: publish to the npm registry IF an `NPM_TOKEN`
+# repository secret is configured (otherwise the publish step is skipped — the
+# GitHub Release assets remain installable via `npm i <tarball-url>`).
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: write # create/update the GitHub Release
+  id-token: write # npm provenance when publishing
+
+jobs:
+  release:
+    name: build, pack, attach tarballs, (optional) npm publish
+    runs-on: ubuntu-latest
+    env:
+      NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Node 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          registry-url: "https://registry.npmjs.org"
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build
+        run: npm run build
+
+      - name: Pack publishable tarballs
+        run: |
+          mkdir -p release-tarballs
+          for p in contracts core driver-playwright driver-selenium ai cli; do
+            npm pack -w @sentinel/$p --pack-destination release-tarballs
+          done
+          ls -1 release-tarballs
+
+      - name: Attach tarballs to the GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release upload "${GITHUB_REF_NAME}" release-tarballs/*.tgz --clobber \
+            || gh release create "${GITHUB_REF_NAME}" release-tarballs/*.tgz --generate-notes
+
+      - name: Publish to npm (only when NPM_TOKEN is configured)
+        if: ${{ env.NPM_TOKEN != '' }}
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: |
+          # Dependency order: contracts -> core -> drivers/ai -> cli.
+          for p in contracts core driver-playwright driver-selenium ai cli; do
+            npm publish -w @sentinel/$p --access public --provenance
+          done
