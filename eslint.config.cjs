@@ -155,6 +155,44 @@ module.exports = [
     },
   },
   {
+    // DRIVER-AGNOSTIC boundary (slice F): @sentinele2e/dashboard source must
+    // import NO driver — neither Playwright/Selenium nor any @sentinele2e/driver-*
+    // package. It renders telemetry; it never drives a browser. Tests under
+    // packages/dashboard/tests/** keep the test-runner exemption below.
+    files: ['packages/dashboard/src/**/*.ts'],
+    rules: {
+      'no-restricted-imports': [
+        'error',
+        {
+          paths: [
+            {
+              name: '@playwright/test',
+              message:
+                'Playwright is confined to @sentinele2e/driver-playwright and test-runner dirs.',
+            },
+            {
+              name: 'playwright',
+              message:
+                'Playwright is confined to @sentinele2e/driver-playwright and test-runner dirs.',
+            },
+            {
+              name: 'selenium-webdriver',
+              message:
+                'Selenium is confined to @sentinele2e/driver-selenium and test-runner dirs.',
+            },
+          ],
+          patterns: [
+            {
+              group: ['@sentinele2e/driver-*'],
+              message:
+                'dashboard is driver-agnostic; it renders telemetry, never drives a browser',
+            },
+          ],
+        },
+      ],
+    },
+  },
+  {
     // Exemption (last match wins): the driver adapter + all test-runner dirs
     // and the Playwright runner config files (test-runner tooling).
     files: [

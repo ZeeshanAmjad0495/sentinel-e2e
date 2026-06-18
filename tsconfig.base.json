@@ -22,6 +22,8 @@
       "@sentinele2e/cli/*": ["packages/cli/src/*"],
       "@sentinele2e/core": ["packages/core/src/index.ts"],
       "@sentinele2e/core/*": ["packages/core/src/*"],
+      "@sentinele2e/dashboard": ["packages/dashboard/src/index.ts"],
+      "@sentinele2e/dashboard/*": ["packages/dashboard/src/*"],
       "@sentinele2e/driver-playwright": [
         "packages/driver-playwright/src/index.ts"
       ],
