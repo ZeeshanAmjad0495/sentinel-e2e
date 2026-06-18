@@ -2,12 +2,13 @@
 #
 # verify-pack-install.sh — Slice D install-verify (design §4.4)
 #
-# Proves the five framework packages are installable like a published library:
-#   1. `npm run build` emits dist for all five.
+# Proves the framework packages are installable like a published library:
+#   1. `npm run build` emits dist for all of them.
 #   2. `npm pack` produces a tarball per package (dist + package.json + README only).
 #   3. The packed tarballs install into a throwaway project and resolve from dist:
 #        - require('@sentinele2e/contracts') and require('@sentinele2e/core') load from dist,
-#        - the @sentinele2e/ai `sentinel-analyze` bin runs against a sample JSONL run.
+#        - the @sentinele2e/ai `sentinel-analyze` bin runs against a sample JSONL run,
+#        - @sentinele2e/dashboard's generateDashboard renders a minimal model (slice F).
 #
 # The throwaway project and the tarballs live under a temp dir that is removed on
 # exit — nothing here is committed. Run from the repo root: `bash scripts/verify-pack-install.sh`.
@@ -17,7 +18,7 @@ set -euo pipefail
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$REPO_ROOT"
 
-PKGS=(contracts core driver-playwright driver-selenium ai)
+PKGS=(contracts core driver-playwright driver-selenium ai dashboard)
 
 WORK="$(mktemp -d "${TMPDIR:-/tmp}/sentinel-pack-verify.XXXXXX")"
 cleanup() { rm -rf "$WORK"; }
@@ -83,4 +84,35 @@ else
   exit 1
 fi
 
-echo "==> PASS: all five tarballs install and resolve from dist; sentinel-analyze runs."
+# Slice F (seam 9): require() the dashboard dist and render a hand-built minimal
+# model (no shipped fixtures); the output must be a self-contained HTML string
+# carrying the <script id="sentinel-data"> data island.
+( cd "$PROJ" && node -e '
+  const path = require("path");
+  const { generateDashboard } = require("@sentinele2e/dashboard");
+  const resolved = require.resolve("@sentinele2e/dashboard");
+  if (!resolved.includes(path.join("dist", "index.js"))) {
+    throw new Error(`@sentinele2e/dashboard did not resolve from dist: ${resolved}`);
+  }
+  const model = {
+    report: {
+      schemaVersion: "1.0.0",
+      generatedFrom: "pack-verify",
+      totals: {
+        runs: 1, realBug: 0, infraFlake: 0, selectorDrift: 0,
+        businessOutcome: 0, healthy: 1, driftingLocators: [],
+      },
+      runs: [],
+    },
+    runs: [],
+    generatedAt: "1970-01-01T00:00:00.000Z",
+    anyTruncated: false,
+  };
+  const html = generateDashboard(model, {});
+  if (typeof html !== "string" || !html.includes("sentinel-data")) {
+    throw new Error("generateDashboard output missing the sentinel-data island");
+  }
+  console.log("    OK  generateDashboard(minimal model) -> self-contained HTML with sentinel-data");
+' )
+
+echo "==> PASS: all six tarballs install and resolve from dist; sentinel-analyze runs; dashboard renders."

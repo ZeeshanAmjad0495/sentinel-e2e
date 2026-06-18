@@ -1,6 +1,6 @@
 # Sentinel Slice F — Operator Dashboard (`@sentinele2e/dashboard`): Design Spec
 
-- **Status:** Approved (synthesis of a 10-agent design workflow: research -> 3 competing designs adversarially validated -> synthesis; static-html scored 9/10)
+- **Status:** SHIPPED (F1–F8 built + merged on `main`). Synthesis of a 10-agent design workflow: research -> 3 competing designs adversarially validated -> synthesis; static-html scored 9/10.
 - **Date:** 2026-06-10
 - **Branch:** `main` (no PRs; push each green phase)
 
@@ -247,13 +247,14 @@ Server-render totals strip (run-level copy) + runs table (verdict-level chips in
 Plant shape-matching secret in `system.failure.message` and an XSS payload in `logicalName`; assert scrubbed in timeline **and** joined evidence, payload escaped, island intact; assert the documented non-shaped-secret limitation explicitly.
 **Gate:** `redact.test.ts` green; `expect(html).not.toContain(plantedShapedSecret)`, `toContain('[redacted]')`, payload appears only as `&lt;script&gt;`.
 
-**F7 — CLI `--html`/`--explain`/`--max-events`/`--no-detail` + write test.**
+**F7 — CLI `--html`/`--explain`/`--max-events`/`--no-detail` + write test. [SHIPPED]**
 Wire flags inside `reportCommand`; mutually-exclusive `--json`/`--html`; real-bug exit gate; update `USAGE` flag list; add cli dependency on `@sentinele2e/dashboard`.
 **Gate:** `write.test.ts` temp-dir round-trip green; `sentinel report --html out.html` writes openable HTML; exit code = real-bug gate; `--json`/`--html` together → exit 2.
+_Shipped as `packages/cli/tests/dashboard-cli.test.ts` (temp-dir round-trip); `model.ts` gained an opt-in `explain` option (per-run `analyzeRun`, redacted via `redactText`)._
 
-**F8 — Optional `--serve` (Node built-ins only) + lenient loopback test + docs.**
-`serve.ts` `serveDashboard(model,{port})` on `127.0.0.1` serving the generated string at `/`; `--serve`/`--port` parsing; update README roadmap (mark slice F shipped, document redaction limitation + truncation). **F8 is droppable without touching F1–F7.**
-**Gate:** `serve.test.ts` (lenient, no SSE/timing assertion) gets 200 + island over loopback and closes cleanly; `npm run test:all` and `scripts/verify-pack-install.sh` green; README updated.
+**F8 — Optional `--serve` (Node built-ins only) + lenient loopback test + docs. [SHIPPED]**
+`serve.ts` `serveDashboard(html|model,{port,auth?})` on `127.0.0.1` serving the generated string at `/`, with **optional HTTP Basic Auth** (`401` + `WWW-Authenticate` on a miss); `--serve`/`--port`/`--auth` parsing; update README roadmap (mark slice F shipped, document the redaction limitation + truncation + loopback-only/optional-auth). **F8 is droppable without touching F1–F7.**
+**Gate:** `serve.test.ts` (lenient, no SSE/timing assertion) gets 200 + island over loopback (and 401/200 under auth) and closes cleanly; `npm run test:all` and `scripts/verify-pack-install.sh` green; README updated.
 
 ---
 

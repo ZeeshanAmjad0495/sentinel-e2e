@@ -106,11 +106,14 @@ export async function reportCommand(
   const asJson = args.includes("--json");
   const htmlFlag = flagValue(args, "--html");
   const asHtml = args.includes("--html");
+  const serve = args.includes("--serve");
   const explain = args.includes("--explain");
   const detail = !args.includes("--no-detail");
   const maxEventsFlag = flagValue(args, "--max-events");
+  const portFlag = flagValue(args, "--port");
+  const authFlag = flagValue(args, "--auth");
 
-  if (asJson && asHtml) {
+  if (asJson && (asHtml || serve)) {
     return {
       output: "error: --json and --html are mutually exclusive.",
       exitCode: 2,
@@ -128,10 +131,12 @@ export async function reportCommand(
   }
 
   // The positional `dir` is the first non-flag token that was not consumed as a
-  // flag value (e.g. the path after --html / --max-events).
+  // flag value (e.g. the path after --html / --max-events / --port / --auth).
   const consumed = new Set<number>([
     ...htmlFlag.consumed,
     ...maxEventsFlag.consumed,
+    ...portFlag.consumed,
+    ...authFlag.consumed,
   ]);
   let dirArg: string | undefined;
   for (let i = 0; i < args.length; i++) {
@@ -150,9 +155,12 @@ export async function reportCommand(
     };
   }
 
-  if (asHtml) {
+  if (asHtml || serve) {
     return reportDashboard(dir, {
       out: htmlFlag.value,
+      serve,
+      port: portFlag.value ? Number(portFlag.value) : undefined,
+      auth: authFlag.value,
       explain,
       maxEvents,
       detail,
@@ -176,15 +184,22 @@ export async function reportCommand(
 
 interface DashboardCliOptions {
   readonly out?: string;
+  readonly serve: boolean;
+  readonly port?: number;
+  readonly auth?: string;
   readonly explain: boolean;
   readonly maxEvents: number;
   readonly detail: boolean;
 }
 
+/** Default loopback port for `--serve`. */
+const DEFAULT_SERVE_PORT = 4317;
+
 /**
- * `--html` path: build the dashboard model (rules-only unless `--explain`),
- * render the self-contained HTML, write it to the resolved absolute path, and
- * report that path. The exit code mirrors the text/json real-bug gate.
+ * `--html` / `--serve` path: build the dashboard model (rules-only unless
+ * `--explain`), render the self-contained HTML, then write a file and/or start a
+ * loopback server. The exit code mirrors the text/json real-bug gate. `--serve`
+ * is long-running (does not return; Ctrl-C to stop).
  */
 async function reportDashboard(
   dir: string,
@@ -198,8 +213,45 @@ async function reportDashboard(
   const html = generateDashboard(model, {});
   const hasRealBug = model.report.totals.realBug > 0;
 
-  const abs = path.resolve(opts.out ?? "dashboard.html");
-  fs.writeFileSync(abs, html);
+  const messages: string[] = [];
 
-  return { output: abs, exitCode: hasRealBug ? 1 : 0 };
+  // `--html` writes the file even alongside `--serve`.
+  if (opts.out !== undefined && opts.out !== "") {
+    const abs = path.resolve(opts.out);
+    fs.writeFileSync(abs, html);
+    messages.push(abs);
+  }
+
+  if (opts.serve) {
+    const { serveDashboard } = await import("@sentinele2e/dashboard");
+    const auth = parseAuth(opts.auth);
+    const { ready } = serveDashboard(html, {
+      port: opts.port ?? DEFAULT_SERVE_PORT,
+      auth,
+    });
+    const url = await ready;
+    messages.push(`Serving Sentinel dashboard at ${url}`);
+    if (auth) {
+      messages.push(
+        "HTTP Basic Auth is required (configured --auth user:pass).",
+      );
+    }
+    messages.push("Loopback-only (127.0.0.1). Press Ctrl-C to stop.");
+    // `--serve` is long-running: the normal "return CliResult -> shim prints"
+    // path never fires, so emit the banner now, then keep the loop alive.
+    console.log(messages.join("\n"));
+    await new Promise<never>(() => {});
+  }
+
+  return { output: messages.join("\n"), exitCode: hasRealBug ? 1 : 0 };
+}
+
+/** Parse a `user:pass` auth string; undefined/empty means open serving. */
+function parseAuth(
+  raw: string | undefined,
+): { user: string; pass: string } | undefined {
+  if (!raw) return undefined;
+  const idx = raw.indexOf(":");
+  if (idx < 0) return { user: raw, pass: "" };
+  return { user: raw.slice(0, idx), pass: raw.slice(idx + 1) };
 }

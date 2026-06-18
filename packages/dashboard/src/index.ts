@@ -11,3 +11,9 @@ export { buildDashboardModel, DEFAULT_MAX_EVENTS } from "./model";
 export { escapeHtml, jsonIsland, DASHBOARD_CSS, DASHBOARD_JS } from "./html";
 export type { GenerateDashboardOptions } from "./render";
 export { generateDashboard } from "./render";
+export type {
+  ServeAuth,
+  ServeDashboardOptions,
+  ServeDashboardResult,
+} from "./serve";
+export { serveDashboard } from "./serve";

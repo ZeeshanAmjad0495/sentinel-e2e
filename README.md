@@ -6,7 +6,7 @@ Sentinel is an automation framework built around one core idea: every action in 
 
 Tool-agnosticism is a consequence of honest plugin seams — driver contracts, locator-strategy registry, telemetry sinks — not the headline. A second driver implements the same contracts without touching framework or flow code: the Selenium driver is already proof, and a mobile driver (Appium) would slot in the same way.
 
-Slices **A** (the spine plus the Playwright driver), **B** (the `@sentinele2e/ai` run-analyzer), and **C** (a second web driver plus a shared cross-driver conformance suite) are all built and merged. It is a working monorepo with five framework packages and one example app. Tool-agnosticism is now demonstrated, not just designed: two maximally-different web drivers pass one conformance suite and emit schema-identical telemetry. Features not yet built are listed under [Roadmap](#roadmap).
+Slices **A** (the spine plus the Playwright driver), **B** (the `@sentinele2e/ai` run-analyzer), **C** (a second web driver plus a shared cross-driver conformance suite), and **F** (the `@sentinele2e/dashboard` operator dashboard, wired into `sentinel report --html`/`--serve`) are all built and merged. It is a working monorepo with six framework packages and one example app. Tool-agnosticism is now demonstrated, not just designed: two maximally-different web drivers pass one conformance suite and emit schema-identical telemetry. Features not yet built are listed under [Roadmap](#roadmap).
 
 ## Architecture at a glance
 
@@ -116,6 +116,21 @@ The run-analyzer (Slice B). Driver-agnostic — it depends only on the `@sentine
 - `analyzeRun(jsonlPathOrEvents, opts)` — orchestrates load → classify → (optional) LLM → `RunAnalysis`. The LLM layer is **optional and graceful**: with no `ANTHROPIC_API_KEY` it returns a complete rules-only analysis; when a key is present it adds a plain-language explanation and adjudicates only the `indeterminate` cases (it never overrides a rule verdict). The provider sits behind an `LlmProvider` abstraction — a `FakeLlmProvider` for tests, and a lazily-loaded `ClaudeProvider` (`claude-opus-4-8`, prompt caching, forced tool-use). The SDK never loads on the rules-only path.
 - `redactEvents` scrubs secrets — both values under secret-looking keys and secret-shaped values (JWTs, `Bearer` tokens, `sk-`/`ghp_`/`xox*`/`AKIA` key prefixes) — from everything sent to the API, while preserving UUID join-keys. The classification is also routed through redaction before it leaves the process.
 - `sentinel-analyze <run.jsonl> [--json]` (root script: `npm run analyze`) — prints the analysis and exits non-zero only on a `real-bug` verdict.
+
+### `@sentinele2e/dashboard`
+
+The operator dashboard (Slice F). A **pure, offline, self-contained HTML generator** over run telemetry — no browser, no CDN, no server required to view it. It depends only on the `@sentinele2e/ai` barrel and `@sentinele2e/core`; the LLM SDK stays lazy (it is in the transitive _install_ tree via `@sentinele2e/ai`, but is never _imported_ on the default rules-only path).
+
+- `buildDashboardModel(dir, opts)` — aggregates `buildReport(dir)` (rules-only, network-free) plus per-run drill-down detail built from `redactEvents(events)` → `classify(redacted)`, a `sequence`-ordered timeline (axis = numeric `startWallClockMs`/`durationMs` only), and a derived `startedAt` so runs are time-ordered, not filename-ordered. `--explain` is opt-in LLM prose (per-run `analyzeRun`, may hit the network/cost when `ANTHROPIC_API_KEY` is set; redacted again via `redactText` before embedding).
+- `generateDashboard(model, opts): string` — a **pure** renderer (no fs, no net): a totals strip (run-level), a runs table with verdict chips, a drifting-locators section, and per-run timeline/verdicts/explanation drill-downs. Every interpolated telemetry string is HTML-escaped; the embedded JSON model is emitted in one `<script id="sentinel-data" type="application/json">` island guarded against `</script>` breakout.
+- `serveDashboard(html | model, { port, auth? })` — an optional **`node:http`-only** (zero-dependency) server bound to **`127.0.0.1`** (loopback) that serves the generated HTML at `/`. When `auth` (`{user, pass}`) is supplied it requires **HTTP Basic Auth** (`401` + `WWW-Authenticate: Basic realm="Sentinel Dashboard"` on a miss/absence); without `auth` it serves openly. This is a local-operator convenience, not a network service.
+- `sentinel report [dir] --html <out>` writes a self-contained dashboard (exits non-zero on a `real-bug`, like the text/json paths); `--serve [--port <n>] [--auth user:pass]` starts the loopback server (long-running; Ctrl-C to stop). `--json` and `--html` are mutually exclusive.
+
+**Two limitations are documented, not hidden:**
+
+- **Redaction is value-shape-narrow.** `redactEvents` scrubs secret-_named_ keys and unambiguous secret _shapes_ (JWT / `Bearer` / `sk-` / `ghp_` / `xox*-` / `AKIA`), deliberately so UUID join-keys, CSS selectors and prose survive. A plaintext secret in a free-text field (e.g. `system.failure.message`) that matches **no** known shape and sits under a non-secret key **survives** the scrub. Generic high-entropy detection is intentionally not done (it would nuke UUIDs). HTML-escaping on output is a separate, always-on control.
+- **Per-run timelines are truncated.** Each run's timeline is capped at `--max-events` (default 500) with a visible "showing first N of M" note. Pagination/virtualization is deferred.
+- **`--serve` is loopback-only.** It binds `127.0.0.1` and `--auth` (HTTP Basic Auth) is **optional** — do not expose it to an untrusted network.
 
 ### `examples/web-erpnext` (`@sentinele2e/example-web-erpnext`)
 
@@ -250,6 +265,7 @@ sentinel-e2e/
 - **Spine + Playwright driver (slice A)** — contracts, `Result`/errors, telemetry pipeline, locator registry, and the Playwright adapter.
 - **AI run-analyzer — single run (slice B)** — `@sentinele2e/ai`: deterministic classification with an optional, graceful Claude explanation layer.
 - **Second web driver + tool-agnostic proof (slice C)** — `@sentinele2e/driver-selenium` plus a shared cross-driver conformance suite; two unrelated tools pass one suite and emit schema-identical telemetry.
+- **Operator dashboard (slice F)** — `@sentinele2e/dashboard`: a pure, offline, self-contained static-HTML generator over run telemetry (totals strip, runs table, drift section, per-run timeline/verdicts/explanation drill-downs), redacted-before-embed + HTML-escaped-on-output. Wired into the CLI as `sentinel report --html <out>`, with an optional `node:http`-only loopback `--serve` mode (optional HTTP Basic Auth via `--auth`).
 - **Resolved slice-A follow-ups (now shipped in slice C):** action waits are clamped to the session's `defaultTimeoutMs` (per-action `timeoutMs` may only tighten it); `@playwright/test` is a `peerDependency` of the driver package; `Locator.within` is explicitly optional on the contract; selector-drift semantics were fixed to mean _missed-below-winner_, not _skipped-because-unsupported_.
 
 ### Remaining
@@ -263,8 +279,7 @@ sentinel-e2e/
 These are the next deliverables to turn the framework into a product. They are **not yet built**.
 
 - **Installable npm packages.** Real `dist` builds with proper `exports`/`types` maps and a publish pipeline, so the packages are consumable outside this monorepo (today they are `private` and resolve via workspace `src` entry points).
-- **A full `sentinel` CLI.** Beyond today's `sentinel-analyze`: project `init`/scaffold (new driver adapters, flows), `run` (drive flows from the command line), and `report` (generate run summaries).
-- **An operator dashboard.** A Cypress-Dashboard-style UI surfacing runs, telemetry timelines, and the analyzer's drift/flake/bug verdicts.
+- **A full `sentinel` CLI.** Beyond today's `sentinel-analyze`: project `init`/scaffold (new driver adapters, flows), `run` (drive flows from the command line), and `report` (generate run summaries, now including the `--html`/`--serve` dashboard from slice F).
 
 ---
 
