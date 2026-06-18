@@ -1,10 +1,24 @@
 # Sentinel
 
+![TypeScript](https://img.shields.io/badge/TypeScript-3178C6?logo=typescript&logoColor=white) ![Playwright](https://img.shields.io/badge/Playwright-2EAD33?logo=playwright&logoColor=white) ![Node.js](https://img.shields.io/badge/Node.js-%E2%89%A520-339933?logo=node.js&logoColor=white) ![AI: Claude](https://img.shields.io/badge/AI-Claude-D97757)
+
 Sentinel is an automation framework built around one core idea: every action in a run produces a clean, structured, domain-level **telemetry record**, and AI reasons over that record to explain runs and classify failures as real-bug, infra-flake, or selector-drift.
 
 Tool-agnosticism is a consequence of honest plugin seams — driver contracts, locator-strategy registry, telemetry sinks — not the headline. A second driver (Appium, a different web driver) can implement the same contracts without touching framework or flow code.
 
 This repository holds **Slice A**: the first implemented slice. It is a working monorepo with three framework packages and one example app. Features not yet built are listed under [Roadmap](#roadmap).
+
+## Architecture at a glance
+
+```mermaid
+graph LR
+  contracts["@sentinel/contracts<br/>zero-dep interfaces"] --> core["@sentinel/core<br/>Result · errors · telemetry"]
+  core --> driver["@sentinel/driver-playwright"]
+  core --> ai["@sentinel/ai<br/>deterministic classify + optional Claude"]
+  driver --> example["examples/web-erpnext (SUT)"]
+```
+
+`@sentinel/contracts` has zero runtime dependencies; every driver and flow codes against it. `@sentinel/core` adds the `Result` model, error taxonomy, and telemetry pipeline. `@sentinel/driver-playwright` is the only package that imports Playwright. `@sentinel/ai` reads run telemetry and never imports a driver.
 
 ---
 
