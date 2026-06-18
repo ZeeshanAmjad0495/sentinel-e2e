@@ -17,10 +17,10 @@ test("barrel exposes PlaywrightDriver", () => {
   ).toBe("function");
 });
 
-test("package declares @playwright/test as a dependency", () => {
+test("package declares @playwright/test as a peerDependency", () => {
   const pkgPath = path.join(__dirname, "..", "package.json");
   const pkg = JSON.parse(fs.readFileSync(pkgPath, "utf8")) as {
-    dependencies?: Record<string, string>;
+    peerDependencies?: Record<string, string>;
   };
-  expect(pkg.dependencies?.["@playwright/test"]).toBeTruthy();
+  expect(pkg.peerDependencies?.["@playwright/test"]).toBeTruthy();
 });
