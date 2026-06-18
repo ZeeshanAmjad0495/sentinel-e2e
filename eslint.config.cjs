@@ -57,6 +57,18 @@ module.exports = [
               message:
                 'Playwright is confined to @sentinel/driver-playwright and test-runner dirs.',
             },
+            {
+              name: 'selenium-webdriver',
+              message:
+                'Selenium is confined to @sentinel/driver-selenium and test-runner dirs.',
+            },
+          ],
+          patterns: [
+            {
+              group: ['selenium-webdriver', 'selenium-webdriver/*'],
+              message:
+                'Selenium is confined to @sentinel/driver-selenium and test-runner dirs.',
+            },
           ],
         },
       ],
@@ -82,6 +94,11 @@ module.exports = [
               message:
                 'Playwright is confined to @sentinel/driver-playwright and test-runner dirs.',
             },
+            {
+              name: 'selenium-webdriver',
+              message:
+                'Selenium is confined to @sentinel/driver-selenium and test-runner dirs.',
+            },
           ],
           patterns: [
             {
@@ -99,6 +116,7 @@ module.exports = [
     // and the Playwright runner config files (test-runner tooling).
     files: [
       'packages/driver-playwright/**/*.ts',
+      'packages/driver-selenium/**/*.ts',
       'packages/**/tests/**',
       'examples/web-erpnext/tests/**',
       'playwright.unit.config.ts',

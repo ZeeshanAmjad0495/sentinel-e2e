@@ -23,7 +23,9 @@
       "@sentinel/driver-playwright": [
         "packages/driver-playwright/src/index.ts"
       ],
-      "@sentinel/driver-playwright/*": ["packages/driver-playwright/src/*"]
+      "@sentinel/driver-playwright/*": ["packages/driver-playwright/src/*"],
+      "@sentinel/driver-selenium": ["packages/driver-selenium/src/index.ts"],
+      "@sentinel/driver-selenium/*": ["packages/driver-selenium/src/*"]
     }
   }
 }
