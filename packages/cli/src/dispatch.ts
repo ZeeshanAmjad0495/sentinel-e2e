@@ -15,7 +15,12 @@ export const USAGE = `usage: sentinel <command> [args] [--flags]
 
 Commands:
   analyze <run.jsonl> [--json]   Classify one telemetry run (exit 1 iff a real bug).
-  report [dir] [--json]          Aggregate a telemetry dir into a cross-run RunReport.
+  report [dir] [--json | --html <out>] [--explain] [--max-events <n>] [--no-detail]
+                                 Aggregate a telemetry dir into a cross-run RunReport.
+                                 --json/--html are mutually exclusive. --html writes a
+                                 self-contained dashboard to <out>. --explain is opt-in
+                                 LLM prose (may hit the network when ANTHROPIC_API_KEY is
+                                 set). Exit 1 iff any run contains a real bug.
   init [dir] [--force]           Scaffold a starter Sentinel project.
   run [pattern] [--config <p>] [--dry-run]
                                  Shell out to the project runner (npx playwright test).

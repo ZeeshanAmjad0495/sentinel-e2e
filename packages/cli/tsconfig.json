@@ -8,7 +8,8 @@
   "references": [
     { "path": "../contracts" },
     { "path": "../core" },
-    { "path": "../ai" }
+    { "path": "../ai" },
+    { "path": "../dashboard" }
   ],
   "include": ["src/**/*.ts"]
 }

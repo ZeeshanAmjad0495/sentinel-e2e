@@ -16,10 +16,12 @@
 import * as path from "node:path";
 import type { TelemetryEvent } from "@sentinele2e/core";
 import {
+  analyzeRun,
   buildReport,
   classify,
   loadEvents,
   redactEvents,
+  redactText,
   type RunReport,
   type RunSummary,
   type Verdict,
@@ -35,6 +37,14 @@ export interface BuildDashboardModelOptions {
   readonly maxEvents?: number;
   /** Stable "generatedAt" stamp (injectable for deterministic tests/snapshots). */
   readonly generatedAt?: string;
+  /**
+   * Opt-in LLM prose per run (redacted before embedding). Default false:
+   * rules-only, NO provider, network-free. When true, `analyzeRun(file)` is
+   * called per run (auto-resolves a ClaudeProvider IFF ANTHROPIC_API_KEY is set,
+   * else stays rules-only); any returned explanation is passed through
+   * `redactText` before it lands in the model.
+   */
+  readonly explain?: boolean;
 }
 
 /**
@@ -107,14 +117,26 @@ function timingOf(event: TelemetryEvent): RawTiming {
  *  4. timeline = redacted events sorted by `sequence`, capped at maxEvents
  *  5. startedAt = min(startWallClockMs)
  */
-function buildRunDetail(
+async function buildRunDetail(
   file: string,
   summary: RunSummary,
   maxEvents: number,
-): RunDetail {
+  explain: boolean,
+): Promise<RunDetail> {
   const events = loadEvents(file);
   const redacted = redactEvents(events);
   const classification = classify(redacted);
+
+  // Opt-in only. On the default path (explain === false) we NEVER call
+  // analyzeRun, so the model build stays rules-only and network-free.
+  let explanation: string | undefined;
+  if (explain) {
+    const analysis = await analyzeRun(file, { explain: true });
+    if (analysis.usedLlm && analysis.explanation) {
+      // belt-and-suspenders: scrub the prose before it is embedded.
+      explanation = redactText(analysis.explanation);
+    }
+  }
 
   const sorted = [...redacted].sort((a, b) => a.sequence - b.sequence);
   const totalEvents = sorted.length;
@@ -146,6 +168,7 @@ function buildRunDetail(
     startedAt,
     timeline,
     verdicts: classification.verdicts,
+    explanation,
     totalEvents,
     truncated,
   };
@@ -164,13 +187,21 @@ export async function buildDashboardModel(
   const detail = opts.detail ?? true;
   const maxEvents = opts.maxEvents ?? DEFAULT_MAX_EVENTS;
   const generatedAt = opts.generatedAt ?? new Date(0).toISOString();
+  const explain = opts.explain ?? false;
 
   const report = await buildReport(dir);
 
   let runs: RunDetail[] = [];
   if (detail) {
-    runs = report.runs.map((summary) =>
-      buildRunDetail(path.join(dir, summary.file), summary, maxEvents),
+    runs = await Promise.all(
+      report.runs.map((summary) =>
+        buildRunDetail(
+          path.join(dir, summary.file),
+          summary,
+          maxEvents,
+          explain,
+        ),
+      ),
     );
     // Time-order by derived startedAt (true time order, not filename).
     runs.sort((a, b) => a.startedAt - b.startedAt);

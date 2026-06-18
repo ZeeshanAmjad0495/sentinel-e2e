@@ -31,6 +31,7 @@
   "dependencies": {
     "@sentinele2e/ai": "^0.1.0",
     "@sentinele2e/core": "^0.1.0",
-    "@sentinele2e/contracts": "^0.1.0"
+    "@sentinele2e/contracts": "^0.1.0",
+    "@sentinele2e/dashboard": "^0.1.0"
   }
 }
