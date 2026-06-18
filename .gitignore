@@ -68,3 +68,5 @@ dist
 # Playwright + Sentinel telemetry output
 test-results/
 playwright-report/
+# local secrets / env files
+.env*
