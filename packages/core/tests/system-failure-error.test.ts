@@ -5,7 +5,7 @@ import {
   type SystemFailureContext,
   type SystemFailureKind,
   type Artifact,
-} from "@sentinel/core";
+} from "@sentinele2e/core";
 
 class FakeError extends SystemFailureError {
   readonly kind: SystemFailureKind = "timeout";

@@ -1,12 +1,12 @@
 // packages/ai/tests/analysis.test.ts
 import { test, expect } from "@playwright/test";
-import { ANALYSIS_SCHEMA_VERSION } from "@sentinel/ai";
+import { ANALYSIS_SCHEMA_VERSION } from "@sentinele2e/ai";
 import type {
   RunOutcome,
   RunClassification,
   RunAnalysis,
   Verdict,
-} from "@sentinel/ai";
+} from "@sentinele2e/ai";
 
 test("ANALYSIS_SCHEMA_VERSION is 1.0.0", () => {
   expect(ANALYSIS_SCHEMA_VERSION).toBe("1.0.0");

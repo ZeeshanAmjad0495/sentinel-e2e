@@ -4,8 +4,8 @@
 // the process.on("unhandledRejection") probe (zero unhandled rejections BY
 // CONSTRUCTION — the single interleaved poll loop has no second promise).
 import { test, expect } from "@playwright/test";
-import type { Locator } from "@sentinel/contracts";
-import { InMemorySink, TimeoutError } from "@sentinel/core";
+import type { Locator } from "@sentinele2e/contracts";
+import { InMemorySink, TimeoutError } from "@sentinele2e/core";
 import { Builder, Browser, type WebDriver } from "selenium-webdriver";
 import { Options } from "selenium-webdriver/chrome";
 import { SeleniumResolver } from "../src/resolver";

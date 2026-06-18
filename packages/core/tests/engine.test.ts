@@ -1,8 +1,8 @@
 // packages/core/tests/engine.test.ts
 import { test, expect } from "@playwright/test";
-import { StrategyRegistry } from "@sentinel/core";
-import type { LocatorResolution, LocatorResolver } from "@sentinel/core";
-import type { ElementHandle, Locator } from "@sentinel/contracts";
+import { StrategyRegistry } from "@sentinele2e/core";
+import type { LocatorResolution, LocatorResolver } from "@sentinele2e/core";
+import type { ElementHandle, Locator } from "@sentinele2e/contracts";
 
 const loc: Locator = {
   logicalName: "auth.login.submit",

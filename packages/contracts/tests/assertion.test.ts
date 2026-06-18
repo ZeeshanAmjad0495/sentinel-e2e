@@ -5,7 +5,7 @@ import type {
   BranchProgress,
   Assertion,
   Locator,
-} from "@sentinel/contracts";
+} from "@sentinele2e/contracts";
 
 const loc: Locator = { logicalName: "x", candidates: [], within: (p) => p };
 

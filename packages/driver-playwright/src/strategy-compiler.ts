@@ -1,6 +1,6 @@
 // packages/driver-playwright/src/strategy-compiler.ts
 import type { Locator as PwLocator, Page } from "@playwright/test";
-import type { LocatorStrategy } from "@sentinel/contracts";
+import type { LocatorStrategy } from "@sentinele2e/contracts";
 
 type Aria =
   | "button"

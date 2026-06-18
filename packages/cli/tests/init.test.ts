@@ -35,7 +35,7 @@ test("init scaffolds the starter files into an empty dir (exit 0)", async () => 
       dependencies: Record<string, string>;
       scripts: Record<string, string>;
     };
-    expect(pkg.dependencies["@sentinel/driver-playwright"]).toBeDefined();
+    expect(pkg.dependencies["@sentinele2e/driver-playwright"]).toBeDefined();
     expect(pkg.scripts.test).toContain("sentinel");
 
     const cfg = JSON.parse(

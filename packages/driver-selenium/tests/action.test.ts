@@ -2,8 +2,8 @@
 // Browser-backed: GATED on SENTINEL_SELENIUM. Serial + 60s; try/finally teardown.
 // Action verbs round-trip on a data: fixture, and per-action timeoutMs is clamped.
 import { test, expect } from "@playwright/test";
-import type { Locator } from "@sentinel/contracts";
-import { InMemorySink } from "@sentinel/core";
+import type { Locator } from "@sentinele2e/contracts";
+import { InMemorySink } from "@sentinele2e/core";
 import { Builder, Browser, type WebDriver } from "selenium-webdriver";
 import { Options } from "selenium-webdriver/chrome";
 import { SeleniumResolver } from "../src/resolver";

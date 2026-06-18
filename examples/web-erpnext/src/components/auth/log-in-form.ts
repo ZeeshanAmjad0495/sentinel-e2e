@@ -1,5 +1,5 @@
 // examples/web-erpnext/src/components/auth/log-in-form.ts
-import type { Session } from "@sentinel/contracts";
+import type { Session } from "@sentinele2e/contracts";
 import type { Credentials } from "../../domain/auth";
 import { loginLocators } from "../../domain/auth/locators";
 

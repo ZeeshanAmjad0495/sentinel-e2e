@@ -5,8 +5,8 @@ import type { Locator } from "./locator";
 import type { Action } from "./action";
 import type { Assertion } from "./assertion";
 
-/** Structural minimum of a telemetry sink, declared here to keep @sentinel/contracts
- *  dependency-free. @sentinel/core's TelemetrySink is structurally assignable to this. */
+/** Structural minimum of a telemetry sink, declared here to keep @sentinele2e/contracts
+ *  dependency-free. @sentinele2e/core's TelemetrySink is structurally assignable to this. */
 export interface TelemetrySinkLike {
   emit(event: unknown): void;
   child(name: string): TelemetrySinkLike;

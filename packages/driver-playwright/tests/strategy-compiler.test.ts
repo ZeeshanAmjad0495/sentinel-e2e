@@ -1,6 +1,6 @@
 // packages/driver-playwright/tests/strategy-compiler.test.ts
 import { test, expect } from "@playwright/test";
-import type { LocatorStrategy } from "@sentinel/contracts";
+import type { LocatorStrategy } from "@sentinele2e/contracts";
 import { compileStrategy } from "../src/strategy-compiler";
 
 const HTML = `

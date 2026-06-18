@@ -7,12 +7,12 @@
 // open(). This file (packages/**/tests/**) is lint-exempt -> it may import the
 // driver SDK and selenium-webdriver; the factory (harness.ts) imports neither.
 import { test, expect } from "@playwright/test";
-import type { Locator, Session, SessionConfig } from "@sentinel/contracts";
-import { InMemorySink } from "@sentinel/core";
-import type { TelemetrySink } from "@sentinel/core";
+import type { Locator, Session, SessionConfig } from "@sentinele2e/contracts";
+import { InMemorySink } from "@sentinele2e/core";
+import type { TelemetrySink } from "@sentinele2e/core";
 import { Builder, Browser, type WebDriver } from "selenium-webdriver";
 import { Options } from "selenium-webdriver/chrome";
-import { SeleniumDriver } from "@sentinel/driver-selenium";
+import { SeleniumDriver } from "@sentinele2e/driver-selenium";
 import { defineDriverContract, type DriverHarness } from "./harness";
 import { LOGIN_DOM, INVALID_DOM, toDataUrl } from "./fixtures";
 

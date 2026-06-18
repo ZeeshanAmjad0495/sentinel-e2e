@@ -1,5 +1,5 @@
 {
-  "name": "@sentinel/driver-playwright",
+  "name": "@sentinele2e/driver-playwright",
   "version": "0.1.0",
   "type": "commonjs",
   "main": "dist/index.js",
@@ -26,8 +26,8 @@
     "access": "public"
   },
   "dependencies": {
-    "@sentinel/contracts": "^0.1.0",
-    "@sentinel/core": "^0.1.0"
+    "@sentinele2e/contracts": "^0.1.0",
+    "@sentinele2e/core": "^0.1.0"
   },
   "peerDependencies": {
     "@playwright/test": "^1.58.2"

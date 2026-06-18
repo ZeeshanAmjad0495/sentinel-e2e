@@ -6,8 +6,8 @@
 #   1. `npm run build` emits dist for all five.
 #   2. `npm pack` produces a tarball per package (dist + package.json + README only).
 #   3. The packed tarballs install into a throwaway project and resolve from dist:
-#        - require('@sentinel/contracts') and require('@sentinel/core') load from dist,
-#        - the @sentinel/ai `sentinel-analyze` bin runs against a sample JSONL run.
+#        - require('@sentinele2e/contracts') and require('@sentinele2e/core') load from dist,
+#        - the @sentinele2e/ai `sentinel-analyze` bin runs against a sample JSONL run.
 #
 # The throwaway project and the tarballs live under a temp dir that is removed on
 # exit — nothing here is committed. Run from the repo root: `bash scripts/verify-pack-install.sh`.
@@ -33,9 +33,9 @@ echo "==> 2/4 packing tarballs"
 TARBALLS=()
 for p in "${PKGS[@]}"; do
   # `npm pack --pack-destination` writes the tarball and prints its filename on the last line.
-  fname="$(npm pack -w "@sentinel/$p" --pack-destination "$WORK" 2>/dev/null | tail -1)"
+  fname="$(npm pack -w "@sentinele2e/$p" --pack-destination "$WORK" 2>/dev/null | tail -1)"
   TARBALLS+=("$WORK/$fname")
-  echo "    packed @sentinel/$p -> $fname"
+  echo "    packed @sentinele2e/$p -> $fname"
 done
 
 echo "==> 3/4 installing tarballs into a throwaway project"
@@ -48,12 +48,12 @@ JSON
 # Install all five tarballs together so cross-deps (^0.1.0) resolve against the
 # freshly-installed siblings. --no-save keeps the temp package.json untouched.
 ( cd "$PROJ" && npm install --no-save --no-audit --no-fund "${TARBALLS[@]}" >/dev/null )
-echo "    installed: $(cd "$PROJ" && ls node_modules/@sentinel)"
+echo "    installed: $(cd "$PROJ" && ls node_modules/@sentinele2e)"
 
 echo "==> 4/4 require() + CLI checks (must resolve from dist)"
 ( cd "$PROJ" && node -e '
   const path = require("path");
-  for (const name of ["@sentinel/contracts", "@sentinel/core"]) {
+  for (const name of ["@sentinele2e/contracts", "@sentinele2e/core"]) {
     const mod = require(name);
     const resolved = require.resolve(name);
     if (!resolved.includes(path.join("dist", "index.js"))) {

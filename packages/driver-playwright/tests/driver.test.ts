@@ -1,7 +1,7 @@
 // packages/driver-playwright/tests/driver.test.ts
 import { test, expect } from "@playwright/test";
-import type { Locator } from "@sentinel/contracts";
-import { InMemorySink, DriverSessionError } from "@sentinel/core";
+import type { Locator } from "@sentinele2e/contracts";
+import { InMemorySink, DriverSessionError } from "@sentinele2e/core";
 import { PlaywrightDriver } from "../src/driver";
 
 const ready: Locator = {

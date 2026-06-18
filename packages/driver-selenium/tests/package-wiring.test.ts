@@ -5,7 +5,7 @@ import * as path from "node:path";
 // Static import (not dynamic): every package's `main` points at raw src/index.ts,
 // so a dynamic bare-specifier import() would resolve untransformed TS and throw.
 // A static import is resolved by Playwright's TS loader via tsconfig `paths`.
-import * as driverBarrel from "@sentinel/driver-selenium";
+import * as driverBarrel from "@sentinele2e/driver-selenium";
 
 test("barrel exposes SeleniumDriver", () => {
   expect(typeof (driverBarrel as Record<string, unknown>).SeleniumDriver).toBe(

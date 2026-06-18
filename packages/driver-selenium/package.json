@@ -1,5 +1,5 @@
 {
-  "name": "@sentinel/driver-selenium",
+  "name": "@sentinele2e/driver-selenium",
   "version": "0.1.0",
   "type": "commonjs",
   "main": "dist/index.js",
@@ -27,8 +27,8 @@
   },
   "dependencies": {
     "selenium-webdriver": "^4.44.0",
-    "@sentinel/contracts": "^0.1.0",
-    "@sentinel/core": "^0.1.0"
+    "@sentinele2e/contracts": "^0.1.0",
+    "@sentinele2e/core": "^0.1.0"
   },
   "devDependencies": {
     "@types/selenium-webdriver": "^4.1.28"

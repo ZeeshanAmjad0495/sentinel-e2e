@@ -1,7 +1,7 @@
 // packages/driver-playwright/src/action.ts
 import type { Locator as PwLocator } from "@playwright/test";
-import type { Action, ActionOptions, Locator } from "@sentinel/contracts";
-import type { LocatorResolver } from "@sentinel/core";
+import type { Action, ActionOptions, Locator } from "@sentinele2e/contracts";
+import type { LocatorResolver } from "@sentinele2e/core";
 import type { PlaywrightElementHandle } from "./element";
 
 export class PlaywrightAction implements Action {

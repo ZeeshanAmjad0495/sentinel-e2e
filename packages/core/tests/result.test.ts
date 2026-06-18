@@ -7,7 +7,7 @@ import {
   assertNever,
   type Result,
   type ResultMeta,
-} from "@sentinel/core";
+} from "@sentinele2e/core";
 
 const meta: ResultMeta = {
   correlationId: "run-1",

@@ -50,24 +50,24 @@ module.exports = [
             {
               name: '@playwright/test',
               message:
-                'Playwright is confined to @sentinel/driver-playwright and test-runner dirs.',
+                'Playwright is confined to @sentinele2e/driver-playwright and test-runner dirs.',
             },
             {
               name: 'playwright',
               message:
-                'Playwright is confined to @sentinel/driver-playwright and test-runner dirs.',
+                'Playwright is confined to @sentinele2e/driver-playwright and test-runner dirs.',
             },
             {
               name: 'selenium-webdriver',
               message:
-                'Selenium is confined to @sentinel/driver-selenium and test-runner dirs.',
+                'Selenium is confined to @sentinele2e/driver-selenium and test-runner dirs.',
             },
           ],
           patterns: [
             {
               group: ['selenium-webdriver', 'selenium-webdriver/*'],
               message:
-                'Selenium is confined to @sentinel/driver-selenium and test-runner dirs.',
+                'Selenium is confined to @sentinele2e/driver-selenium and test-runner dirs.',
             },
           ],
         },
@@ -75,8 +75,8 @@ module.exports = [
     },
   },
   {
-    // DRIVER-AGNOSTIC boundary (slice B): @sentinel/ai analyzer source must
-    // import NO driver — neither Playwright nor any @sentinel/driver-* package.
+    // DRIVER-AGNOSTIC boundary (slice B): @sentinele2e/ai analyzer source must
+    // import NO driver — neither Playwright nor any @sentinele2e/driver-* package.
     // Tests under packages/ai/tests/** keep the test-runner exemption below.
     files: ['packages/ai/src/**/*.ts'],
     rules: {
@@ -87,24 +87,24 @@ module.exports = [
             {
               name: '@playwright/test',
               message:
-                'Playwright is confined to @sentinel/driver-playwright and test-runner dirs.',
+                'Playwright is confined to @sentinele2e/driver-playwright and test-runner dirs.',
             },
             {
               name: 'playwright',
               message:
-                'Playwright is confined to @sentinel/driver-playwright and test-runner dirs.',
+                'Playwright is confined to @sentinele2e/driver-playwright and test-runner dirs.',
             },
             {
               name: 'selenium-webdriver',
               message:
-                'Selenium is confined to @sentinel/driver-selenium and test-runner dirs.',
+                'Selenium is confined to @sentinele2e/driver-selenium and test-runner dirs.',
             },
           ],
           patterns: [
             {
-              group: ['@sentinel/driver-*'],
+              group: ['@sentinele2e/driver-*'],
               message:
-                '@sentinel/ai is driver-agnostic: it must import only the telemetry contract (@sentinel/core), never a driver.',
+                '@sentinele2e/ai is driver-agnostic: it must import only the telemetry contract (@sentinele2e/core), never a driver.',
             },
           ],
         },
@@ -112,8 +112,8 @@ module.exports = [
     },
   },
   {
-    // DRIVER-AGNOSTIC boundary (slice E): @sentinel/cli source must import NO
-    // driver — neither Playwright/Selenium nor any @sentinel/driver-* package.
+    // DRIVER-AGNOSTIC boundary (slice E): @sentinele2e/cli source must import NO
+    // driver — neither Playwright/Selenium nor any @sentinele2e/driver-* package.
     // The `run` command SHELLS OUT to `npx playwright test`; the CLI never
     // imports the runner. Tests under packages/cli/tests/** keep the exemption.
     files: ['packages/cli/src/**/*.ts'],
@@ -125,29 +125,29 @@ module.exports = [
             {
               name: '@playwright/test',
               message:
-                'Playwright is confined to @sentinel/driver-playwright and test-runner dirs.',
+                'Playwright is confined to @sentinele2e/driver-playwright and test-runner dirs.',
             },
             {
               name: 'playwright',
               message:
-                'Playwright is confined to @sentinel/driver-playwright and test-runner dirs.',
+                'Playwright is confined to @sentinele2e/driver-playwright and test-runner dirs.',
             },
             {
               name: 'selenium-webdriver',
               message:
-                'Selenium is confined to @sentinel/driver-selenium and test-runner dirs.',
+                'Selenium is confined to @sentinele2e/driver-selenium and test-runner dirs.',
             },
           ],
           patterns: [
             {
               group: ['selenium-webdriver', 'selenium-webdriver/*'],
               message:
-                'Selenium is confined to @sentinel/driver-selenium and test-runner dirs.',
+                'Selenium is confined to @sentinele2e/driver-selenium and test-runner dirs.',
             },
             {
-              group: ['@sentinel/driver-*'],
+              group: ['@sentinele2e/driver-*'],
               message:
-                '@sentinel/cli is driver-agnostic: it depends only on @sentinel/ai + core/contracts and shells out to the project runner, never importing a driver.',
+                '@sentinele2e/cli is driver-agnostic: it depends only on @sentinele2e/ai + core/contracts and shells out to the project runner, never importing a driver.',
             },
           ],
         },

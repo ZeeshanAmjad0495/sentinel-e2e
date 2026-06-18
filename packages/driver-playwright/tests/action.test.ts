@@ -1,8 +1,8 @@
 // packages/driver-playwright/tests/action.test.ts
 import { test, expect } from "@playwright/test";
 import type { Page } from "@playwright/test";
-import type { Locator } from "@sentinel/contracts";
-import { InMemorySink } from "@sentinel/core";
+import type { Locator } from "@sentinele2e/contracts";
+import { InMemorySink } from "@sentinele2e/core";
 import { PlaywrightResolver } from "../src/resolver";
 import { PlaywrightAction } from "../src/action";
 

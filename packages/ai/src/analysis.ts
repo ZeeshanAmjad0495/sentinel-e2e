@@ -1,4 +1,4 @@
-import type { TelemetryEvent } from "@sentinel/core";
+import type { TelemetryEvent } from "@sentinele2e/core";
 import type { Verdict } from "./verdict";
 
 export type RunOutcome =
@@ -28,6 +28,6 @@ export interface RunAnalysis {
   readonly llmError?: string; // set when the LLM was attempted but skipped/failed (graceful)
 }
 
-// `TelemetryEvent` is the consumed input type across the @sentinel/ai pipeline;
+// `TelemetryEvent` is the consumed input type across the @sentinele2e/ai pipeline;
 // re-export it here so downstream modules import it from a single analyzer surface.
 export type { TelemetryEvent };

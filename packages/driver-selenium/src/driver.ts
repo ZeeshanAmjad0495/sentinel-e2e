@@ -6,9 +6,9 @@ import type {
   Session,
   SessionConfig,
   StrategyKind,
-} from "@sentinel/contracts";
-import { DriverSessionError } from "@sentinel/core";
-import type { TelemetrySink } from "@sentinel/core";
+} from "@sentinele2e/contracts";
+import { DriverSessionError } from "@sentinele2e/core";
+import type { TelemetrySink } from "@sentinele2e/core";
 import { SeleniumSession } from "./session";
 
 // NOT "role" (needs an a11y-tree shim) / "relative".

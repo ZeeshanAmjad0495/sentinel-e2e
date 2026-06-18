@@ -1,6 +1,6 @@
 // packages/driver-selenium/src/actionability.ts
 import type { By, WebDriver, WebElement } from "selenium-webdriver";
-import { TimeoutError } from "@sentinel/core";
+import { TimeoutError } from "@sentinele2e/core";
 
 const SLICE_MS = 50;
 

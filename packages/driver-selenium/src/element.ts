@@ -4,7 +4,7 @@ import type {
   ElementHandle,
   Locator,
   LocatorStrategy,
-} from "@sentinel/contracts";
+} from "@sentinele2e/contracts";
 import { compileStrategy, toBy } from "./strategy-compiler";
 
 /** Re-resolves the winning candidate per call — dodges stale-element references. */

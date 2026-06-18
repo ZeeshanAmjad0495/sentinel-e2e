@@ -2,7 +2,7 @@
 // Offline (.test.ts so it runs under `npm run test:unit`, which needs no BASE_URL env).
 // Drives the REAL logIn flow against a success page whose submit swaps in the app shell.
 import { test, expect } from "@playwright/test";
-import { InMemorySink } from "@sentinel/core";
+import { InMemorySink } from "@sentinele2e/core";
 import { logIn } from "../../src/flows";
 import { SUCCESS_DOM } from "../_support/login-dom";
 

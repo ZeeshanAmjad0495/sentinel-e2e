@@ -7,26 +7,28 @@
     "types": ["node", "@playwright/test"],
     // baseUrl is set to "." (this example dir) so that legacy bare imports like
     // `import { env } from "src/config/env"` keep resolving. That override causes
-    // the root-relative @sentinel/* paths inherited from tsconfig.base.json to
+    // the root-relative @sentinele2e/* paths inherited from tsconfig.base.json to
     // misresolve (e.g. to examples/web-erpnext/packages/...). Re-declare them here
     // anchored to this file's baseUrl so they point at the real workspace packages.
     "paths": {
-      "@sentinel/contracts": ["../../packages/contracts/src/index.ts"],
-      "@sentinel/contracts/*": ["../../packages/contracts/src/*"],
-      "@sentinel/core": ["../../packages/core/src/index.ts"],
-      "@sentinel/core/*": ["../../packages/core/src/*"],
-      "@sentinel/driver-playwright": [
+      "@sentinele2e/contracts": ["../../packages/contracts/src/index.ts"],
+      "@sentinele2e/contracts/*": ["../../packages/contracts/src/*"],
+      "@sentinele2e/core": ["../../packages/core/src/index.ts"],
+      "@sentinele2e/core/*": ["../../packages/core/src/*"],
+      "@sentinele2e/driver-playwright": [
         "../../packages/driver-playwright/src/index.ts"
       ],
-      "@sentinel/driver-playwright/*": [
+      "@sentinele2e/driver-playwright/*": [
         "../../packages/driver-playwright/src/*"
       ],
-      "@sentinel/driver-selenium": [
+      "@sentinele2e/driver-selenium": [
         "../../packages/driver-selenium/src/index.ts"
       ],
-      "@sentinel/driver-selenium/*": ["../../packages/driver-selenium/src/*"],
-      "@sentinel/ai": ["../../packages/ai/src/index.ts"],
-      "@sentinel/ai/*": ["../../packages/ai/src/*"]
+      "@sentinele2e/driver-selenium/*": [
+        "../../packages/driver-selenium/src/*"
+      ],
+      "@sentinele2e/ai": ["../../packages/ai/src/index.ts"],
+      "@sentinele2e/ai/*": ["../../packages/ai/src/*"]
     }
   },
   "references": [

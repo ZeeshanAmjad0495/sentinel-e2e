@@ -4,7 +4,7 @@ import { writeFileSync, rmSync, existsSync } from "node:fs";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { randomUUID } from "node:crypto";
-import { loadEvents } from "@sentinel/ai";
+import { loadEvents } from "@sentinele2e/ai";
 
 const line = (name: string, seq: number): string =>
   JSON.stringify({

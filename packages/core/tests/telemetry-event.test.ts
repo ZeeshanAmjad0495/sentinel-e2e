@@ -6,7 +6,7 @@ import {
   type SpanStatus,
   type TelemetryEventType,
   type TelemetryEnvelope,
-} from "@sentinel/core";
+} from "@sentinele2e/core";
 
 test("schema version is 1.0.0", () => {
   expect(TELEMETRY_SCHEMA_VERSION).toBe("1.0.0");

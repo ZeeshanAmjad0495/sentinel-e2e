@@ -1,8 +1,8 @@
 // packages/driver-playwright/tests/session.test.ts
 import { test, expect } from "@playwright/test";
 import type { Page } from "@playwright/test";
-import type { Locator } from "@sentinel/contracts";
-import { InMemorySink, CapabilityUnsupportedError } from "@sentinel/core";
+import type { Locator } from "@sentinele2e/contracts";
+import { InMemorySink, CapabilityUnsupportedError } from "@sentinele2e/core";
 import { PlaywrightSession } from "../src/session";
 
 const ready: Locator = {

@@ -13,12 +13,12 @@
 // passed `undefined as never` and the injected createSession IGNORES it — the
 // Selenium WebDriver is the real handle, adopted via `existingSession`.
 import { test, expect } from "@playwright/test";
-import { InMemorySink } from "@sentinel/core";
-import type { LocatorResolvedEvent } from "@sentinel/core";
-import { classify } from "@sentinel/ai";
+import { InMemorySink } from "@sentinele2e/core";
+import type { LocatorResolvedEvent } from "@sentinele2e/core";
+import { classify } from "@sentinele2e/ai";
 import { Builder, Browser, type WebDriver } from "selenium-webdriver";
 import { Options } from "selenium-webdriver/chrome";
-import { SeleniumDriver } from "@sentinel/driver-selenium";
+import { SeleniumDriver } from "@sentinele2e/driver-selenium";
 import { logIn } from "../../src/flows";
 import { INVALID_DOM, LOGIN_DOM } from "../_support/login-dom";
 

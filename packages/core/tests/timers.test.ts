@@ -1,6 +1,6 @@
 // packages/core/tests/timers.test.ts
 import { test, expect } from "@playwright/test";
-import { startTimer, durationMsFromNs, type Timer } from "@sentinel/core";
+import { startTimer, durationMsFromNs, type Timer } from "@sentinele2e/core";
 
 test("durationMsFromNs converts a ns delta to fractional ms", () => {
   expect(durationMsFromNs(1_000_000n)).toBe(1);

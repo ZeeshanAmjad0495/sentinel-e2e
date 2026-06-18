@@ -1,5 +1,5 @@
 // examples/web-erpnext/src/domain/auth/log-in-result.ts
-import type { Result } from "@sentinel/core";
+import type { Result } from "@sentinele2e/core";
 
 export interface LoginSuccessData {
   readonly username: string;

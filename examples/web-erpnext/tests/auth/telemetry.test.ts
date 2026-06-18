@@ -1,7 +1,7 @@
 // examples/web-erpnext/tests/auth/telemetry.test.ts
 // Offline (.test.ts so it runs under `npm run test:unit`, which needs no BASE_URL env).
 import { test, expect } from "@playwright/test";
-import { InMemorySink } from "@sentinel/core";
+import { InMemorySink } from "@sentinele2e/core";
 import { logIn } from "../../src/flows";
 import { INVALID_DOM } from "../_support/login-dom";
 

@@ -1,4 +1,4 @@
-# Sentinel Slice A — `@sentinel/core` Spine: Design Spec
+# Sentinel Slice A — `@sentinele2e/core` Spine: Design Spec
 
 - **Status:** Draft for review
 - **Date:** 2026-06-01
@@ -43,25 +43,25 @@ The repo is a single flat package today (`erpnext-e2e`, `tsconfig baseUrl:"."`, 
 ```
 sentinel-e2e/                              # workspace root
   package.json                             # "workspaces": ["packages/*","examples/*"]; keep "type":"commonjs"
-  tsconfig.base.json                       # strict + noUncheckedIndexedAccess + @sentinel/* paths (lifted from current tsconfig)
+  tsconfig.base.json                       # strict + noUncheckedIndexedAccess + @sentinele2e/* paths (lifted from current tsconfig)
   tsconfig.json                            # solution-style: references all packages + example
   eslint.config.cjs                        # + no-restricted-imports ban; parserOptions -> projectService:true (solution-style root tsconfig includes no files)
   packages/
-    contracts/                             # @sentinel/contracts — ZERO runtime deps, pure types
+    contracts/                             # @sentinele2e/contracts — ZERO runtime deps, pure types
       package.json  tsconfig.json
       src/{capability,locator,element,action,assertion,session,driver,index}.ts
-    core/                                  # @sentinel/core — depends ONLY on @sentinel/contracts
+    core/                                  # @sentinele2e/core — depends ONLY on @sentinele2e/contracts
       package.json  tsconfig.json
       src/result/{result,factory,index}.ts
       src/errors/{system-failure-error,kinds,index}.ts
       src/telemetry/{event,signals,sink,jsonl-sink,timers,index}.ts
       src/locator/{strategy-registry,engine,index}.ts
       src/index.ts
-    driver-playwright/                     # @sentinel/driver-playwright — ONLY package importing @playwright/test
+    driver-playwright/                     # @sentinele2e/driver-playwright — ONLY package importing @playwright/test
       package.json  tsconfig.json
       src/{driver,session,action,assertion,resolver,strategy-compiler,element,index}.ts
   examples/
-    web-erpnext/                           # @sentinel/example-web-erpnext (private) — the migrated auth slice
+    web-erpnext/                           # @sentinele2e/example-web-erpnext (private) — the migrated auth slice
       package.json  tsconfig.json  playwright.config.ts
       src/
         domain/auth/   { credentials.ts, log-in-result.ts, locators.ts }
@@ -78,16 +78,16 @@ sentinel-e2e/                              # workspace root
 **Transition mechanics:**
 
 - The empty `src/core/*` stubs (`page-handle.ts`, `telemetry.ts`, `system-failure-error.ts`, `timers.ts`, etc.) are **deleted**; nothing imports them, so there is no fallout. The whole flat `src/` tree is replaced by the package + example layout above (`git mv` where a file survives, e.g. `credentials.ts`, `env.ts`).
-- `tsconfig.base.json` holds `strict`, `noUncheckedIndexedAccess`, `module: CommonJS`, `target: ES2022`, and explicit per-package `paths` (a single `@sentinel/*` glob silently misses the `/src/` segment on subpath imports):
+- `tsconfig.base.json` holds `strict`, `noUncheckedIndexedAccess`, `module: CommonJS`, `target: ES2022`, and explicit per-package `paths` (a single `@sentinele2e/*` glob silently misses the `/src/` segment on subpath imports):
 
   ```jsonc
   "paths": {
-    "@sentinel/contracts": ["packages/contracts/src/index.ts"],
-    "@sentinel/contracts/*": ["packages/contracts/src/*"],
-    "@sentinel/core": ["packages/core/src/index.ts"],
-    "@sentinel/core/*": ["packages/core/src/*"],
-    "@sentinel/driver-playwright": ["packages/driver-playwright/src/index.ts"],
-    "@sentinel/driver-playwright/*": ["packages/driver-playwright/src/*"]
+    "@sentinele2e/contracts": ["packages/contracts/src/index.ts"],
+    "@sentinele2e/contracts/*": ["packages/contracts/src/*"],
+    "@sentinele2e/core": ["packages/core/src/index.ts"],
+    "@sentinele2e/core/*": ["packages/core/src/*"],
+    "@sentinele2e/driver-playwright": ["packages/driver-playwright/src/index.ts"],
+    "@sentinele2e/driver-playwright/*": ["packages/driver-playwright/src/*"]
   }
   ```
 
@@ -95,12 +95,12 @@ sentinel-e2e/                              # workspace root
 
 - **Boundary enforcement:** an ESLint `no-restricted-imports` rule bans `@playwright/test` (and `playwright`) everywhere except `packages/driver-playwright/**` **and the example's test-runner files** (`examples/web-erpnext/tests/**` specs + `_support/fixtures/**`, which legitimately need Playwright's test runner). The ban targets app/flow/component code, not the spec runner; the boundary becomes a lint failure, not a convention. In flat config this is two ordered entries: a global `{ files: ['**/*.ts'], rules: { 'no-restricted-imports': ['error', { paths: ['@playwright/test','playwright'] }] } }`, then a later `{ files: ['packages/driver-playwright/**/*.ts','examples/web-erpnext/tests/**'], rules: { 'no-restricted-imports': 'off' } }` (last match wins).
 - **Typed-lint transition:** the root `tsconfig.json` becomes references-only and includes no files, so the ESLint typed parser is switched from `parserOptions.project: './tsconfig.json'` to `parserOptions.projectService: true` (typescript-eslint v8); otherwise `no-floating-promises`/`no-misused-promises`/`await-thenable` fail to resolve on every `packages/**` and `examples/**` file.
-- **VCS + resolution hygiene:** this slice adds `test-results/` and `playwright-report/` to `.gitignore` (currently absent — only the ESLint/Prettier ignore lists mention them, which do not affect VCS). `@sentinel/*` resolves **exclusively via tsconfig `paths` → `src`**; package `main`/`exports` are omitted (or point at `src/index.ts`) until the deferred publication slice, to avoid a half-true `dist` entry that fails outside the Playwright/tsc loaders.
-- **Playwright runner:** the config moves to `examples/web-erpnext/playwright.config.ts` (`testDir: "./tests"`). Root `package.json` scripts pass `--config examples/web-erpnext/playwright.config.ts`. Playwright's TS loader honors `tsconfig` `paths`, so `@sentinel/*` imports resolve in specs and app code without a build step.
+- **VCS + resolution hygiene:** this slice adds `test-results/` and `playwright-report/` to `.gitignore` (currently absent — only the ESLint/Prettier ignore lists mention them, which do not affect VCS). `@sentinele2e/*` resolves **exclusively via tsconfig `paths` → `src`**; package `main`/`exports` are omitted (or point at `src/index.ts`) until the deferred publication slice, to avoid a half-true `dist` entry that fails outside the Playwright/tsc loaders.
+- **Playwright runner:** the config moves to `examples/web-erpnext/playwright.config.ts` (`testDir: "./tests"`). Root `package.json` scripts pass `--config examples/web-erpnext/playwright.config.ts`. Playwright's TS loader honors `tsconfig` `paths`, so `@sentinele2e/*` imports resolve in specs and app code without a build step.
 
 ---
 
-## 3. Core contracts (`@sentinel/contracts`)
+## 3. Core contracts (`@sentinele2e/contracts`)
 
 Driver-agnostic, zero runtime deps. Components and flows import **only** these.
 
@@ -279,15 +279,15 @@ export interface SessionConfig {
 }
 ```
 
-> **`existingPage` narrowing** is confined to `@sentinel/driver-playwright`: the driver duck-types it (presence of `goto`/`locator`) and throws `DriverSessionError` (`kind:"driver-session"`) on mismatch. The `as Page` cast exists at exactly this one guarded point; no other package narrows `existingPage`.
+> **`existingPage` narrowing** is confined to `@sentinele2e/driver-playwright`: the driver duck-types it (presence of `goto`/`locator`) and throws `DriverSessionError` (`kind:"driver-session"`) on mismatch. The `as Page` cast exists at exactly this one guarded point; no other package narrows `existingPage`.
 >
-> **Id generation:** `Session.id` is minted once via `crypto.randomUUID()` in `@sentinel/core` at `createSession`, and is the single source feeding the JSONL filename and every envelope's `traceId`/`correlationId`. `eventId` is a fresh uuid per `emit`.
+> **Id generation:** `Session.id` is minted once via `crypto.randomUUID()` in `@sentinele2e/core` at `createSession`, and is the single source feeding the JSONL filename and every envelope's `traceId`/`correlationId`. `eventId` is a fresh uuid per `emit`.
 
 ### 3.8 Explicitly EXCLUDED from core
 
 | Concept                                                        | Why excluded           | Where it lives instead                                                                  |
 | -------------------------------------------------------------- | ---------------------- | --------------------------------------------------------------------------------------- |
-| `Page` / `BrowserContext` / `Browser` Playwright nouns         | tool-specific          | inside `@sentinel/driver-playwright`, behind `Session`                                  |
+| `Page` / `BrowserContext` / `Browser` Playwright nouns         | tool-specific          | inside `@sentinele2e/driver-playwright`, behind `Session`                               |
 | Raw CSS string as _the_ locator                                | absent in native       | a `LocatorStrategy{kind:"css"}` the web driver compiles                                 |
 | `getByRole` / accessibility semantics as a method              | web-only               | gated `accessibilityTree`; strategy `kind:"role"`                                       |
 | `url` / `finalUrl` / `currentUrl` as a **required** field      | web/webview-only       | `currentUrl?` gated `navigation`; in results an **optional artifact**                   |
@@ -301,7 +301,7 @@ Calling any gated method on an unsupporting driver throws the typed `CapabilityU
 
 ---
 
-## 4. Result model (`@sentinel/core` → `result/`) — nested shape, specs edited (D-2)
+## 4. Result model (`@sentinele2e/core` → `result/`) — nested shape, specs edited (D-2)
 
 System failures are **thrown, never a `Result` variant**. A `Result` means "the run completed and produced a domain answer." Discriminant is `status` (string — narrows cleanly, extends without boolean explosion).
 
@@ -360,7 +360,7 @@ export const assertNever = (x: never): never => {
 
 ```ts
 // examples/web-erpnext/src/domain/auth/log-in-result.ts
-import type { Result } from "@sentinel/core";
+import type { Result } from "@sentinele2e/core";
 
 export interface LoginSuccessData {
   readonly username: string;
@@ -383,7 +383,7 @@ There is **no `toFlatLoginResult`** and no flat interface. The flow returns `Log
 
 ---
 
-## 5. Error taxonomy (`@sentinel/core` → `errors/`)
+## 5. Error taxonomy (`@sentinele2e/core` → `errors/`)
 
 Only kinds a current call site produces, plus the gated-method guard. Base carries the join key + artifacts; open by subclassing.
 
@@ -393,7 +393,7 @@ import type {
   Capability,
   StrategyKind,
   BranchProgress,
-} from "@sentinel/contracts";
+} from "@sentinele2e/contracts";
 
 export type SystemFailureKind =
   | "timeout"
@@ -466,7 +466,7 @@ The load-bearing boundary: a failed _business_ assertion (wrong password) is a `
 
 ---
 
-## 6. Telemetry event model (`@sentinel/core` → `telemetry/`)
+## 6. Telemetry event model (`@sentinele2e/core` → `telemetry/`)
 
 JSON-first append-only stream, correlated by `correlationId` (= `Session.id`), ordered by a monotonic per-run `sequence` plus wall-clock `tsWallMs`. OTel-shaped `traceId` / `spanId` / `parentSpanId` are present so a span tree is additive later; Slice A only requires the flat correlation. Readers MUST ignore unknown `type`.
 
@@ -518,7 +518,7 @@ import type {
   StrategyKind,
   ElementState,
   BranchProgress,
-} from "@sentinel/contracts";
+} from "@sentinele2e/contracts";
 import type { Artifact, SystemFailureKind } from "../errors";
 export interface LocatorResolvedEvent extends TelemetryEnvelope<"locator.resolved"> {
   logicalName: string;
@@ -621,7 +621,7 @@ export class JsonlSink implements TelemetrySink {
 
 ---
 
-## 7. Locator engine (`@sentinel/core` → `locator/`)
+## 7. Locator engine (`@sentinele2e/core` → `locator/`)
 
 A `Locator` is a prioritized candidate list (most-durable first, css/xpath as the bottom rung). The resolver (per driver) tries candidates in order, **first unique match ≥ `minScore` wins** (binary `1.0` in Slice A), and **emits which candidate won**. Self-healing is **detect + record + propose, never silent-mutate**.
 
@@ -675,7 +675,7 @@ export interface LocatorResolver {
 
 ```ts
 // examples/web-erpnext/src/domain/auth/locators.ts
-import type { Locator } from "@sentinel/contracts";
+import type { Locator } from "@sentinele2e/contracts";
 
 export const loginLocators = {
   username: {
@@ -751,7 +751,7 @@ Verified live defects: **D1** `app-shell.ts:26` captures `page.url()` once (stal
 | `src/domain/auth/log-in-result.ts`                                                                                                                                                                 | `LoginResult = Result<LoginSuccessData, LoginReason, LoginFailureDetails>` (rich; §4). Flat interface + projection **removed**.                                                  | Specs/fixtures updated to nested shape (below).                                                                                                                                                                                                                                                                                                                                                                                                                                                                             |
 | `src/domain/auth/credentials.ts`                                                                                                                                                                   | **Moved unchanged** to `examples/web-erpnext/src/domain/auth/credentials.ts`.                                                                                                    | `Readonly<{username,password}>` already tool-agnostic.                                                                                                                                                                                                                                                                                                                                                                                                                                                                      |
 | `src/config/{env,timeout}.ts`                                                                                                                                                                      | `env.ts` **moved** to `examples/web-erpnext/src/config/`; `timeout.ts` **authored new** (currently a 0-byte stub) to export `defaultTimeoutMs` (replaces the `10_000` literals). | env vars unchanged (`BASE_URL`, `ADMIN_USER`, `ADMIN_PASSWORD`).                                                                                                                                                                                                                                                                                                                                                                                                                                                            |
-| `src/core/*` 0-byte stubs                                                                                                                                                                          | **Deleted**; reborn as `@sentinel/contracts` + `@sentinel/core`.                                                                                                                 | Empty stubs import nothing → no fallout.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    |
+| `src/core/*` 0-byte stubs                                                                                                                                                                          | **Deleted**; reborn as `@sentinele2e/contracts` + `@sentinele2e/core`.                                                                                                           | Empty stubs import nothing → no fallout.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    |
 | All other flat-tree stubs (empty `data-table`/`dialog`/`form` components, empty barrels `src/config/index.ts` + `src/ui/**/index.ts`, `tests/_support/test.config.ts`, dead `index.ts` re-exports) | **Deleted** as unused.                                                                                                                                                           | `src/domain/auth/index.ts`'s **value** re-export of `LoginResult` is rewritten to `export type` (it is now a type alias; else `consistent-type-imports` flags it).                                                                                                                                                                                                                                                                                                                                                          |
 
 ### Test edits (D-2 — specs migrate to nested shape)
@@ -809,9 +809,9 @@ The live code binds `invalidState = submitButton` and detects invalidity via but
 1. `npm run lint` passes — typed rules resolve under `parserOptions.projectService: true` (the references-only root tsconfig includes no files), and the new `no-restricted-imports` ban reports no `@playwright/test` import outside `packages/driver-playwright/**` and the test-runner exemption.
 2. `tsc -b` (project references) type-checks all packages + the example under `strict` + `noUncheckedIndexedAccess`.
 3. `npm test` (Playwright, `examples/web-erpnext`) passes: the invalid-credentials spec asserts the nested `business-failure` / `INVALID_CREDENTIALS` / truthy `message`; the admin-login spec passes via the fixture.
-4. A run writes `test-results/telemetry/<runId>.jsonl`; a `@sentinel/core` unit test asserts `InMemorySink` captured `locator.resolved` (with `resolvedRank`/`candidates`), `assertion`, `flow.finished`, and on the invalid path `business.failure` with `domainReason:"INVALID_CREDENTIALS"`; and that `JsonlSink` round-trips bigint timing fields.
+4. A run writes `test-results/telemetry/<runId>.jsonl`; a `@sentinele2e/core` unit test asserts `InMemorySink` captured `locator.resolved` (with `resolvedRank`/`candidates`), `assertion`, `flow.finished`, and on the invalid path `business.failure` with `domainReason:"INVALID_CREDENTIALS"`; and that `JsonlSink` round-trips bigint timing fields.
 5. The login success path no longer resolves by timeout (D2 fix): a unit/integration test proves `waitForFirstOf` throws `TimeoutError` (with `branchProgress`) when neither branch is reached, rather than returning `"SUCCESS"`.
-6. No `@playwright/test` symbol is importable from `@sentinel/core` or `@sentinel/contracts` (enforced by lint + verified by the package `dependencies` having no `@playwright/test`).
+6. No `@playwright/test` symbol is importable from `@sentinele2e/core` or `@sentinele2e/contracts` (enforced by lint + verified by the package `dependencies` having no `@playwright/test`).
 
 ---
 
@@ -820,7 +820,7 @@ The live code binds `invalidState = submitButton` and detects invalidity via but
 1. **R-1 (signature):** keep `logIn(page, …)` (page-wrap) as specified, or also expose/prefer `logIn(session, …)`?
 2. **Example app home:** `examples/web-erpnext` as the migrated-slice workspace (matches the README) — accept, or prefer `apps/` / keeping tests at repo root?
 3. **JSONL path:** `test-results/telemetry/<runId>.jsonl` acceptable, or a different location (e.g. a git-ignored `.sentinel/`)?
-4. **Playwright loader tsconfig (validate at build time):** which tsconfig Playwright's esbuild loader reads for _transitively-imported_ `packages/**` files (outside `examples/web-erpnext`) is genuinely uncertain — it may pick a package tsconfig lacking the `@sentinel/*` paths. Likely fix is `build: { tsconfig: '<the tsconfig that declares the paths>' }` in `playwright.config.ts`, but the implementer must confirm empirically (a spec importing `@sentinel/core` **and** a `driver-playwright` file importing `@sentinel/contracts` both resolving at test time) rather than asserting it here.
+4. **Playwright loader tsconfig (validate at build time):** which tsconfig Playwright's esbuild loader reads for _transitively-imported_ `packages/**` files (outside `examples/web-erpnext`) is genuinely uncertain — it may pick a package tsconfig lacking the `@sentinele2e/*` paths. Likely fix is `build: { tsconfig: '<the tsconfig that declares the paths>' }` in `playwright.config.ts`, but the implementer must confirm empirically (a spec importing `@sentinele2e/core` **and** a `driver-playwright` file importing `@sentinele2e/contracts` both resolving at test time) rather than asserting it here.
 
 ---
 
@@ -829,7 +829,7 @@ The live code binds `invalidState = submitButton` and detects invalidity via but
 Slice A bundles five independently-riskful workstreams; the implementation plan should sequence them so each is verifiable before the next, each gated on its §10 acceptance subset:
 
 1. **S1 — Monorepo move + tooling.** Create the workspace, `tsconfig.base.json` (+ explicit `paths`), per-package tsconfigs, the ESLint flat-config ban + `projectService` switch, the `.gitignore` additions, and move the Playwright config. Acceptance: `tsc -b` and `lint` green on an empty-but-wired tree; existing tests still run from their new home (before the contract migration).
-2. **S2 — `@sentinel/contracts` + `@sentinel/core` types.** Contracts, Result model, error taxonomy, telemetry event/sink model (incl. `SpanContext`, `InMemorySink`, `NoopSink`, `CompositeSink`, `JsonlSink` with bigint replacer), locator engine interfaces + `StrategyRegistry`. Acceptance: §10.2 type-check + core unit tests for sinks/result factories (no driver yet).
-3. **S3 — `@sentinel/driver-playwright`.** Driver/session/action/assertion/resolver/strategy-compiler/element, including the four §7 obligations (esp. `waitForFirstOf` race + loser-cancellation and the resolve→`locator.resolved` emit). Acceptance: §10.5 (race throws on no-winner) + a resolver emit test.
+2. **S2 — `@sentinele2e/contracts` + `@sentinele2e/core` types.** Contracts, Result model, error taxonomy, telemetry event/sink model (incl. `SpanContext`, `InMemorySink`, `NoopSink`, `CompositeSink`, `JsonlSink` with bigint replacer), locator engine interfaces + `StrategyRegistry`. Acceptance: §10.2 type-check + core unit tests for sinks/result factories (no driver yet).
+3. **S3 — `@sentinele2e/driver-playwright`.** Driver/session/action/assertion/resolver/strategy-compiler/element, including the four §7 obligations (esp. `waitForFirstOf` race + loser-cancellation and the resolve→`locator.resolved` emit). Acceptance: §10.5 (race throws on no-winner) + a resolver emit test.
 4. **S4 — Auth-slice migration.** Locators, `LogInForm`/`AppShell` on `Session`, the folded flow, the rich `LoginResult`, the `logIn(page,…)` page-wrap. Acceptance: defects D1–D5 fixed.
 5. **S5 — Spec edits + telemetry assertions green.** Edit the two specs/fixtures to the nested shape; assert `InMemorySink` events + `JsonlSink` round-trip. Acceptance: full §10 (1–6).

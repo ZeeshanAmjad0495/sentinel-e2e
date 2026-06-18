@@ -1,15 +1,15 @@
 // examples/web-erpnext/src/flows/auth/log-in.ts
 import type { Page } from "@playwright/test";
-import type { Session, TelemetrySinkLike } from "@sentinel/contracts";
-import type { TelemetrySink } from "@sentinel/core";
+import type { Session, TelemetrySinkLike } from "@sentinele2e/contracts";
+import type { TelemetrySink } from "@sentinele2e/core";
 import {
   CompositeSink,
   InMemorySink,
   JsonlSink,
   ok,
   businessFailure,
-} from "@sentinel/core";
-import { PlaywrightDriver } from "@sentinel/driver-playwright";
+} from "@sentinele2e/core";
+import { PlaywrightDriver } from "@sentinele2e/driver-playwright";
 import type { Credentials, LoginResult } from "../../domain/auth";
 import { loginLocators, appShellLocators } from "../../domain/auth/locators";
 import { LogInForm } from "../../components/auth/log-in-form";

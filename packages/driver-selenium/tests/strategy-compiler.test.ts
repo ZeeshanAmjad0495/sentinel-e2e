@@ -1,7 +1,7 @@
 // packages/driver-selenium/tests/strategy-compiler.test.ts
 // PURE unit tests — NO browser. Asserts the {using,value} descriptor per kind.
 import { test, expect } from "@playwright/test";
-import type { LocatorStrategy } from "@sentinel/contracts";
+import type { LocatorStrategy } from "@sentinele2e/contracts";
 import { compileStrategy } from "../src/strategy-compiler";
 
 const CSS = "css selector";

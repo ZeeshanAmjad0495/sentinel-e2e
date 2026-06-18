@@ -2,7 +2,7 @@
 import { test, expect } from "@playwright/test";
 import { LogInForm } from "../../src/components/auth/log-in-form";
 import { loginLocators } from "../../src/domain/auth/locators";
-import type { Locator } from "@sentinel/contracts";
+import type { Locator } from "@sentinele2e/contracts";
 
 function fakeSession() {
   const typed: Array<{ target: Locator; text: string }> = [];

@@ -1,7 +1,7 @@
 // packages/ai/tests/redact.test.ts
 import { test, expect } from "@playwright/test";
-import { redactEvents } from "@sentinel/ai";
-import type { TelemetryEvent } from "@sentinel/ai";
+import { redactEvents } from "@sentinele2e/ai";
+import type { TelemetryEvent } from "@sentinele2e/ai";
 
 const baseEvent = (
   attributes: Readonly<Record<string, string | number | boolean>>,

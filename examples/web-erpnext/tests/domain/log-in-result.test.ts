@@ -6,7 +6,7 @@ import type {
   LoginReason,
   LoginFailureDetails,
 } from "../../src/domain/auth/log-in-result";
-import type { ResultMeta } from "@sentinel/core";
+import type { ResultMeta } from "@sentinele2e/core";
 
 const meta: ResultMeta = {
   correlationId: "c-1",

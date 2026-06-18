@@ -1,6 +1,6 @@
 // packages/ai/tests/rules.test.ts
 import { test, expect } from "@playwright/test";
-import { classify } from "@sentinel/ai";
+import { classify } from "@sentinele2e/ai";
 import type {
   TelemetryEvent,
   LocatorResolvedEvent,
@@ -9,8 +9,8 @@ import type {
   BusinessFailureEvent,
   SystemFailureEvent,
   FlowFinishedEvent,
-} from "@sentinel/core";
-import { TELEMETRY_SCHEMA_VERSION } from "@sentinel/core";
+} from "@sentinele2e/core";
+import { TELEMETRY_SCHEMA_VERSION } from "@sentinele2e/core";
 
 let seq = 0;
 const base = <T extends TelemetryEvent["type"]>(type: T, name: string) => ({

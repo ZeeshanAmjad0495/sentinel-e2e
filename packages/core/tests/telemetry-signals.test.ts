@@ -1,6 +1,6 @@
 // packages/core/tests/telemetry-signals.test.ts
 import { test, expect } from "@playwright/test";
-import { TELEMETRY_SCHEMA_VERSION } from "@sentinel/core";
+import { TELEMETRY_SCHEMA_VERSION } from "@sentinele2e/core";
 import type {
   LocatorResolvedEvent,
   AssertionEvent,
@@ -10,7 +10,7 @@ import type {
   ArtifactCapturedEvent,
   FlowFinishedEvent,
   TelemetryEvent,
-} from "@sentinel/core";
+} from "@sentinele2e/core";
 
 const base = {
   schemaVersion: TELEMETRY_SCHEMA_VERSION,

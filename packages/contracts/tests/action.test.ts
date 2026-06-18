@@ -1,6 +1,6 @@
 // packages/contracts/tests/action.test.ts
 import { test, expect } from "@playwright/test";
-import type { GestureTarget, Action, Locator } from "@sentinel/contracts";
+import type { GestureTarget, Action, Locator } from "@sentinele2e/contracts";
 
 const loc: Locator = { logicalName: "x", candidates: [], within: (p) => p };
 

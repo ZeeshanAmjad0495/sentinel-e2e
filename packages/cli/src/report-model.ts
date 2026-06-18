@@ -1,5 +1,5 @@
 // packages/cli/src/report-model.ts
-import type { RunOutcome, VerdictKind } from "@sentinel/ai";
+import type { RunOutcome, VerdictKind } from "@sentinele2e/ai";
 
 /** Bumped independently of the analyzer schema; this is the dashboard contract. */
 export const REPORT_SCHEMA_VERSION = "1.0.0";

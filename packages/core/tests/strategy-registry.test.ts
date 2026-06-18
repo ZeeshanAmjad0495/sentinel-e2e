@@ -1,6 +1,6 @@
 // packages/core/tests/strategy-registry.test.ts
 import { test, expect } from "@playwright/test";
-import { StrategyRegistry } from "@sentinel/core";
+import { StrategyRegistry } from "@sentinele2e/core";
 
 test("default ranks follow the §7 durability table", () => {
   const reg = new StrategyRegistry();

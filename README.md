@@ -6,16 +6,16 @@ Sentinel is an automation framework built around one core idea: every action in 
 
 Tool-agnosticism is a consequence of honest plugin seams — driver contracts, locator-strategy registry, telemetry sinks — not the headline. A second driver implements the same contracts without touching framework or flow code: the Selenium driver is already proof, and a mobile driver (Appium) would slot in the same way.
 
-Slices **A** (the spine plus the Playwright driver), **B** (the `@sentinel/ai` run-analyzer), and **C** (a second web driver plus a shared cross-driver conformance suite) are all built and merged. It is a working monorepo with five framework packages and one example app. Tool-agnosticism is now demonstrated, not just designed: two maximally-different web drivers pass one conformance suite and emit schema-identical telemetry. Features not yet built are listed under [Roadmap](#roadmap).
+Slices **A** (the spine plus the Playwright driver), **B** (the `@sentinele2e/ai` run-analyzer), and **C** (a second web driver plus a shared cross-driver conformance suite) are all built and merged. It is a working monorepo with five framework packages and one example app. Tool-agnosticism is now demonstrated, not just designed: two maximally-different web drivers pass one conformance suite and emit schema-identical telemetry. Features not yet built are listed under [Roadmap](#roadmap).
 
 ## Architecture at a glance
 
 ```mermaid
 graph LR
-  contracts["@sentinel/contracts<br/>zero-dep interfaces"] --> core["@sentinel/core<br/>Result · errors · telemetry"]
-  core --> driverPw["@sentinel/driver-playwright"]
-  core --> driverSe["@sentinel/driver-selenium"]
-  core --> ai["@sentinel/ai<br/>deterministic classify + optional Claude"]
+  contracts["@sentinele2e/contracts<br/>zero-dep interfaces"] --> core["@sentinele2e/core<br/>Result · errors · telemetry"]
+  core --> driverPw["@sentinele2e/driver-playwright"]
+  core --> driverSe["@sentinele2e/driver-selenium"]
+  core --> ai["@sentinele2e/ai<br/>deterministic classify + optional Claude"]
   driverPw -. implements .-> contracts
   driverSe -. implements .-> contracts
   conformance["conformance suite<br/>(packages/contracts/tests/conformance)"] --> driverPw
@@ -24,13 +24,13 @@ graph LR
   driverSe --> example
 ```
 
-`@sentinel/contracts` has zero runtime dependencies; every driver and flow codes against it. `@sentinel/core` adds the `Result` model, error taxonomy, and telemetry pipeline. `@sentinel/driver-playwright` and `@sentinel/driver-selenium` are the only packages that import their respective browser SDKs; both implement the same contracts and feed one shared conformance suite. `@sentinel/ai` reads run telemetry and never imports a driver.
+`@sentinele2e/contracts` has zero runtime dependencies; every driver and flow codes against it. `@sentinele2e/core` adds the `Result` model, error taxonomy, and telemetry pipeline. `@sentinele2e/driver-playwright` and `@sentinele2e/driver-selenium` are the only packages that import their respective browser SDKs; both implement the same contracts and feed one shared conformance suite. `@sentinele2e/ai` reads run telemetry and never imports a driver.
 
 ---
 
 ## What is built today
 
-### `@sentinel/contracts`
+### `@sentinele2e/contracts`
 
 Zero runtime dependencies. Pure TypeScript interfaces that every driver and flow codes against:
 
@@ -39,11 +39,11 @@ Zero runtime dependencies. Pure TypeScript interfaces that every driver and flow
 - `Action` — universal verbs (`tap`, `typeText`, `clear`, `read`), each taking an optional `ActionOptions{ timeoutMs }`; mobile-only gestures (`swipe`, `longPress`, `scrollTo`) are optional and capability-gated. A per-action `timeoutMs` may only _tighten_ the deadline: the effective bound is `min(timeoutMs, SessionConfig.defaultTimeoutMs)`. Auto-wait drivers honour it by passing `{ timeout }` to the SDK; no-auto-wait drivers honour it by polling to that deadline.
 - `Assertion` — `waitFor` and `waitForFirstOf`; both throw on timeout, never resolve silently.
 - `Capability` / `CapabilityProbe` — typed gates for web-only (`navigation`, `dom`, `accessibilityTree`) and mobile-only (`gestures`, `contexts`) features.
-- `TelemetrySinkLike` — a minimal structural interface so `@sentinel/contracts` stays dependency-free while still carrying a sink reference on `Session`.
+- `TelemetrySinkLike` — a minimal structural interface so `@sentinele2e/contracts` stays dependency-free while still carrying a sink reference on `Session`.
 
-### `@sentinel/core`
+### `@sentinele2e/core`
 
-Runtime utilities that all framework packages and flows use. Depends only on `@sentinel/contracts`.
+Runtime utilities that all framework packages and flows use. Depends only on `@sentinele2e/contracts`.
 
 **Result model.** A discriminated-union `Result<T, R, D>` with two variants:
 
@@ -81,7 +81,7 @@ Each error carries a `SystemFailureContext` with `correlationId`, `flowName`, `s
 
 **Locator strategy registry.** `StrategyRegistry` maintains durability ranks for strategy kinds (role=0, label=1, text=2, placeholder/altText/title=3, testid=4, relative=5, css/xpath=6). Drivers resolve candidates in declaration order and record each candidate's outcome (`matched` / `missed` / `skipped`). Selector drift is when a more-durable candidate was tried-and-`missed` _below_ the winning rank — not merely `skipped` because the driver doesn't support that kind.
 
-### `@sentinel/driver-playwright`
+### `@sentinele2e/driver-playwright`
 
 The only package that imports `@playwright/test` (now declared as a **`peerDependency`**, with a dev-dependency for local builds/tests). Implements the contracts for Playwright:
 
@@ -91,7 +91,7 @@ The only package that imports `@playwright/test` (now declared as a **`peerDepen
 - `PlaywrightAction` — implements `tap`, `typeText`, `clear`, `read` via the resolver. Each verb clamps the effective Playwright timeout to `min(opts.timeoutMs, defaultTimeoutMs)`, so callers can only tighten the session bound.
 - `PlaywrightAssertion` — implements `waitFor` and `waitForFirstOf`. `waitForFirstOf` runs all branches concurrently in short poll slices (a shared winner latch cancels losers without unhandled rejections). On no winner it emits an `assertion` event with the per-branch `BranchProgress` and throws `TimeoutError`. It never resolves on timeout.
 
-### `@sentinel/driver-selenium`
+### `@sentinele2e/driver-selenium`
 
 The second web driver, and the only package that imports `selenium-webdriver`. It implements the **same contracts** as the Playwright driver over a maximally-different tool, proving the seams are honest:
 
@@ -108,16 +108,16 @@ Both drivers run the identical assertions: resolver-emits-before-handle, the dri
 
 The Playwright adapter always runs (the test runner already provisions a browser). The Selenium adapter is **gated** behind `SENTINEL_SELENIUM=1` (Selenium Manager provisions chromedriver on first run); offline it skips cleanly.
 
-### `@sentinel/ai`
+### `@sentinele2e/ai`
 
-The run-analyzer (Slice B). Driver-agnostic — it depends only on the `@sentinel/core` telemetry contract and never imports a driver (enforced by the lint boundary). It reads a run's JSONL telemetry and classifies each failure deterministically, optionally using Claude to explain the run.
+The run-analyzer (Slice B). Driver-agnostic — it depends only on the `@sentinele2e/core` telemetry contract and never imports a driver (enforced by the lint boundary). It reads a run's JSONL telemetry and classifies each failure deterministically, optionally using Claude to explain the run.
 
 - `classify(events)` — a pure, deterministic rule engine that turns telemetry into `Verdict`s: `selector-drift` (a `locator.resolved` where a more-durable candidate was tried-and-`missed` _below_ the winning rank — derived purely from `candidates[].outcome`, so an unsupported/`skipped` top candidate never counts), `real-bug` (a rank-0 assertion that never matched, with no preceding retry), `infra-flake` (retry-then-pass, or a retryable timeout), `business-outcome` (an expected domain result like `INVALID_CREDENTIALS` — not a defect), `healthy`, or `indeterminate`. This drift definition is what lets the css/xpath-native Selenium driver run without false drift on every locator.
 - `analyzeRun(jsonlPathOrEvents, opts)` — orchestrates load → classify → (optional) LLM → `RunAnalysis`. The LLM layer is **optional and graceful**: with no `ANTHROPIC_API_KEY` it returns a complete rules-only analysis; when a key is present it adds a plain-language explanation and adjudicates only the `indeterminate` cases (it never overrides a rule verdict). The provider sits behind an `LlmProvider` abstraction — a `FakeLlmProvider` for tests, and a lazily-loaded `ClaudeProvider` (`claude-opus-4-8`, prompt caching, forced tool-use). The SDK never loads on the rules-only path.
 - `redactEvents` scrubs secrets — both values under secret-looking keys and secret-shaped values (JWTs, `Bearer` tokens, `sk-`/`ghp_`/`xox*`/`AKIA` key prefixes) — from everything sent to the API, while preserving UUID join-keys. The classification is also routed through redaction before it leaves the process.
 - `sentinel-analyze <run.jsonl> [--json]` (root script: `npm run analyze`) — prints the analysis and exits non-zero only on a `real-bug` verdict.
 
-### `examples/web-erpnext` (`@sentinel/example-web-erpnext`)
+### `examples/web-erpnext` (`@sentinele2e/example-web-erpnext`)
 
 A private example app demonstrating the auth slice on the contracts. It is not a framework package; it is the reference SUT (system under test).
 
@@ -134,7 +134,7 @@ A private example app demonstrating the auth slice on the contracts. It is not a
 Business failures are returned as a `Result`; system failures are thrown as typed `SystemFailureError` subclasses. This keeps the happy path and expected-failure path in the type system while letting real infra/driver failures propagate as errors.
 
 ```ts
-import type { Result } from "@sentinel/core";
+import type { Result } from "@sentinele2e/core";
 
 // Checking the outcome
 if (result.status === "success") {
@@ -167,7 +167,7 @@ Every resolved locator and every assertion emits a structured event. Both driver
 
 Every event envelope carries `schemaVersion`, `eventId`, `type`, `traceId`, `spanId`, `parentSpanId`, and `sequence`. Stamping happens once in `StampingSink` before fan-out, so the in-memory log and the on-disk JSONL are always identical.
 
-The `CompositeSink([InMemorySink, JsonlSink])` setup in the example app writes one JSONL file per run at `test-results/telemetry/<runId>.jsonl`. This file is the feed consumed by the `@sentinel/ai` run-analyzer (above) — `npm run analyze test-results/telemetry/<runId>.jsonl`.
+The `CompositeSink([InMemorySink, JsonlSink])` setup in the example app writes one JSONL file per run at `test-results/telemetry/<runId>.jsonl`. This file is the feed consumed by the `@sentinele2e/ai` run-analyzer (above) — `npm run analyze test-results/telemetry/<runId>.jsonl`.
 
 ---
 
@@ -228,14 +228,14 @@ CI (`.github/workflows/ci.yml`) mirrors this: an always-on, required `typecheck`
 ```
 sentinel-e2e/
   packages/
-    contracts/        @sentinel/contracts — zero-dep types
+    contracts/        @sentinele2e/contracts — zero-dep types
       tests/conformance/  shared cross-driver conformance suite (factory + per-driver adapters)
-    core/             @sentinel/core — result, errors, telemetry, locator registry
-    driver-playwright/ @sentinel/driver-playwright — Playwright adapter
-    driver-selenium/  @sentinel/driver-selenium — Selenium adapter (same contracts)
-    ai/               @sentinel/ai — run-analyzer (deterministic rules + optional Claude)
+    core/             @sentinele2e/core — result, errors, telemetry, locator registry
+    driver-playwright/ @sentinele2e/driver-playwright — Playwright adapter
+    driver-selenium/  @sentinele2e/driver-selenium — Selenium adapter (same contracts)
+    ai/               @sentinele2e/ai — run-analyzer (deterministic rules + optional Claude)
   examples/
-    web-erpnext/      @sentinel/example-web-erpnext — auth slice on ERPNext (+ Selenium proof)
+    web-erpnext/      @sentinele2e/example-web-erpnext — auth slice on ERPNext (+ Selenium proof)
   docs/               design specs, ADRs
   .github/workflows/  ci.yml — always-on offline suite + opt-in Selenium job
   package.json        workspace root (npm workspaces)
@@ -248,8 +248,8 @@ sentinel-e2e/
 ### Done
 
 - **Spine + Playwright driver (slice A)** — contracts, `Result`/errors, telemetry pipeline, locator registry, and the Playwright adapter.
-- **AI run-analyzer — single run (slice B)** — `@sentinel/ai`: deterministic classification with an optional, graceful Claude explanation layer.
-- **Second web driver + tool-agnostic proof (slice C)** — `@sentinel/driver-selenium` plus a shared cross-driver conformance suite; two unrelated tools pass one suite and emit schema-identical telemetry.
+- **AI run-analyzer — single run (slice B)** — `@sentinele2e/ai`: deterministic classification with an optional, graceful Claude explanation layer.
+- **Second web driver + tool-agnostic proof (slice C)** — `@sentinele2e/driver-selenium` plus a shared cross-driver conformance suite; two unrelated tools pass one suite and emit schema-identical telemetry.
 - **Resolved slice-A follow-ups (now shipped in slice C):** action waits are clamped to the session's `defaultTimeoutMs` (per-action `timeoutMs` may only tighten it); `@playwright/test` is a `peerDependency` of the driver package; `Locator.within` is explicitly optional on the contract; selector-drift semantics were fixed to mean _missed-below-winner_, not _skipped-because-unsupported_.
 
 ### Remaining

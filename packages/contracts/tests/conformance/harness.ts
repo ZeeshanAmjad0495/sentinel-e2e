@@ -14,13 +14,13 @@
 // that is in/out of BOTH advertised sets so the SAME assertion holds on each.
 
 import { test, expect } from "@playwright/test";
-import type { Locator, Session, SessionConfig } from "@sentinel/contracts";
-import type { TelemetrySink } from "@sentinel/core";
+import type { Locator, Session, SessionConfig } from "@sentinele2e/contracts";
+import type { TelemetrySink } from "@sentinele2e/core";
 import {
   InMemorySink,
   TimeoutError,
   CapabilityUnsupportedError,
-} from "@sentinel/core";
+} from "@sentinele2e/core";
 
 /** A per-driver adapter. `open` navigates to the fixture and returns a wired Session. */
 export interface DriverHarness {

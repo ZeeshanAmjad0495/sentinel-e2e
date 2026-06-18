@@ -1,8 +1,8 @@
 // examples/web-erpnext/tests/flows/log-in.test.ts
 import { test, expect } from "@playwright/test";
 import { logIn } from "../../src/flows/auth/log-in";
-import { InMemorySink } from "@sentinel/core";
-import type { Locator, ElementState, Session } from "@sentinel/contracts";
+import { InMemorySink } from "@sentinele2e/core";
+import type { Locator, ElementState, Session } from "@sentinele2e/contracts";
 
 /** Build a fake Page (only the methods the driver duck-types / flow may touch). */
 function fakePage(url: string) {

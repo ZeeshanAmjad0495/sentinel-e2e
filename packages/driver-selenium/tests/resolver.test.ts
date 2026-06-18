@@ -2,9 +2,9 @@
 // Browser-backed: GATED on SENTINEL_SELENIUM (Selenium Manager provisions
 // chromedriver on first run). Serial + long timeout; teardown in try/finally.
 import { test, expect } from "@playwright/test";
-import type { Locator } from "@sentinel/contracts";
-import { InMemorySink } from "@sentinel/core";
-import { SelectorAmbiguousError } from "@sentinel/core";
+import type { Locator } from "@sentinele2e/contracts";
+import { InMemorySink } from "@sentinele2e/core";
+import { SelectorAmbiguousError } from "@sentinele2e/core";
 import { Builder, Browser, type WebDriver } from "selenium-webdriver";
 import { Options } from "selenium-webdriver/chrome";
 import { SeleniumResolver } from "../src/resolver";

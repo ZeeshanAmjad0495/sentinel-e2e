@@ -1,6 +1,6 @@
 // packages/ai/tests/verdict.test.ts
 import { test, expect } from "@playwright/test";
-import type { VerdictKind, Evidence, Verdict } from "@sentinel/ai";
+import type { VerdictKind, Evidence, Verdict } from "@sentinele2e/ai";
 
 test("Verdict types compose into a well-formed rule verdict", () => {
   const evidence: Evidence = {

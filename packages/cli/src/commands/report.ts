@@ -1,8 +1,8 @@
 // packages/cli/src/commands/report.ts
 import * as fs from "node:fs";
 import * as path from "node:path";
-import { analyzeRun } from "@sentinel/ai";
-import type { RunAnalysis, VerdictKind } from "@sentinel/ai";
+import { analyzeRun } from "@sentinele2e/ai";
+import type { RunAnalysis, VerdictKind } from "@sentinele2e/ai";
 import type { CliResult } from "../dispatch";
 import { loadConfig } from "../config";
 import {

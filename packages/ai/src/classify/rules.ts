@@ -7,7 +7,7 @@ import type {
   AssertionEvent,
   RetryEvent,
   BusinessFailureEvent,
-} from "@sentinel/core";
+} from "@sentinele2e/core";
 import type { RunClassification, RunOutcome } from "../analysis";
 import type { Verdict, Evidence } from "../verdict";
 

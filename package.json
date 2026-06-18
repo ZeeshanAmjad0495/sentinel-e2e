@@ -11,7 +11,7 @@
     "typecheck": "tsc -b",
     "build": "tsc -b",
     "build:clean": "tsc -b --clean",
-    "pack:check": "npm run build && for p in contracts core driver-playwright driver-selenium ai cli; do npm pack -w @sentinel/$p --dry-run; done",
+    "pack:check": "npm run build && for p in contracts core driver-playwright driver-selenium ai cli; do npm pack -w @sentinele2e/$p --dry-run; done",
     "analyze": "tsc -b && node packages/ai/dist/cli.js",
     "test": "playwright test --config examples/web-erpnext/playwright.config.ts",
     "test:unit": "playwright test --config playwright.unit.config.ts",

@@ -7,7 +7,7 @@ import type {
   LocatorStrategy,
   Locator,
   ElementHandle,
-} from "@sentinel/contracts";
+} from "@sentinele2e/contracts";
 
 test("Capability values are the documented union members", () => {
   const caps: Capability[] = [

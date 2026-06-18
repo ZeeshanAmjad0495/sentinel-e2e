@@ -1,26 +1,26 @@
-# Publishing Sentinel to npm (`@sentinel/*`, public)
+# Publishing Sentinel to npm (`@sentinele2e/*`, public)
 
 The six packages are publish-ready: `npm pack`-verified, `publishConfig.access: public`,
 uniform `0.1.0`, concrete `^0.1.0` cross-deps, MIT-licensed, `npm publish --dry-run` clean.
-The only remaining steps need credentials (an npm token) and the `@sentinel` scope —
+The only remaining steps need credentials (an npm token) and the `@sentinele2e` scope —
 both yours to provide. This repo already ships a **publish-on-tag** workflow
 (`.github/workflows/release.yml`).
 
 Publishable packages, in dependency order:
-`@sentinel/contracts` → `@sentinel/core` → `@sentinel/driver-playwright` → `@sentinel/driver-selenium` → `@sentinel/ai` → `@sentinel/cli`.
+`@sentinele2e/contracts` → `@sentinele2e/core` → `@sentinele2e/driver-playwright` → `@sentinele2e/driver-selenium` → `@sentinele2e/ai` → `@sentinele2e/cli`.
 
 ---
 
-## Step 0 — Confirm the `@sentinel` scope is yours
+## Step 0 — Confirm the `@sentinele2e` scope is yours
 
 From a machine with registry access:
 
 ```bash
-npm view @sentinel/core version
+npm view @sentinele2e/core version
 ```
 
 - **`E404` (not found)** → the name is free under the scope. Make sure you own the
-  `@sentinel` **org** on npm (create it at <https://www.npmjs.com/org/create>, name `sentinel`),
+  `@sentinele2e` **org** on npm (create it at <https://www.npmjs.com/org/create>, name `sentinele2e`),
   or the publish will be rejected as an unowned scope.
 - **Returns a version** → the scope/name is already taken by someone else. Either request
   the org, or rename the scope (e.g. `@zeeshanamjad0495/*`) before publishing.
@@ -28,7 +28,7 @@ npm view @sentinel/core version
 ## Step 1 — Create an npm automation token
 
 npmjs.com → your avatar → **Access Tokens** → **Generate New Token** →
-**Granular Access Token** (or "Automation"): allow **read + write** to the `@sentinel` scope,
+**Granular Access Token** (or "Automation"): allow **read + write** to the `@sentinele2e` scope,
 no IP allowlist, sensible expiry. Copy it.
 
 ## Step 2A — Publish via CI (recommended)
@@ -56,17 +56,17 @@ for all six packages in dependency order. Watch it with `gh run watch`.
 npm login                        # authenticate once
 npm run build
 for p in contracts core driver-playwright driver-selenium ai cli; do
-  npm publish -w @sentinel/$p --access public --provenance
+  npm publish -w @sentinele2e/$p --access public --provenance
 done
 ```
 
-Publish in that order so each package's `@sentinel/*` dependencies already exist on the registry.
+Publish in that order so each package's `@sentinele2e/*` dependencies already exist on the registry.
 
 ## Step 3 — Verify
 
 ```bash
-npm view @sentinel/cli version          # -> 0.1.0
-npx @sentinel/cli@0.1.0 --version       # -> 0.1.0
+npm view @sentinele2e/cli version          # -> 0.1.0
+npx @sentinele2e/cli@0.1.0 --version       # -> 0.1.0
 ```
 
 ---

@@ -1,6 +1,6 @@
 // packages/ai/src/load.ts
 import { readFileSync } from "node:fs";
-import type { TelemetryEvent } from "@sentinel/core";
+import type { TelemetryEvent } from "@sentinele2e/core";
 
 /** Loosely-typed parse of a JSONL line: timing ns fields stay as strings. */
 interface RawEvent {

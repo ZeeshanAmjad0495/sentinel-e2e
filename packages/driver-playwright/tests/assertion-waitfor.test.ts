@@ -1,8 +1,8 @@
 // packages/driver-playwright/tests/assertion-waitfor.test.ts
 import { test, expect } from "@playwright/test";
 import type { Page } from "@playwright/test";
-import type { Locator } from "@sentinel/contracts";
-import { InMemorySink, TimeoutError } from "@sentinel/core";
+import type { Locator } from "@sentinele2e/contracts";
+import { InMemorySink, TimeoutError } from "@sentinele2e/core";
 import { PlaywrightResolver } from "../src/resolver";
 import { PlaywrightAssertion } from "../src/assertion";
 

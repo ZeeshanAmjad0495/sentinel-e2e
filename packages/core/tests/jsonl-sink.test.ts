@@ -4,8 +4,8 @@ import { readFileSync, rmSync, existsSync } from "node:fs";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { randomUUID } from "node:crypto";
-import { JsonlSink, TELEMETRY_SCHEMA_VERSION } from "@sentinel/core";
-import type { TelemetryEnvelope } from "@sentinel/core";
+import { JsonlSink, TELEMETRY_SCHEMA_VERSION } from "@sentinele2e/core";
+import type { TelemetryEnvelope } from "@sentinele2e/core";
 
 const evt = (name: string, start: bigint, end: bigint): TelemetryEnvelope => ({
   schemaVersion: TELEMETRY_SCHEMA_VERSION,

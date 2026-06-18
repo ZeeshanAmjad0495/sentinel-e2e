@@ -2,9 +2,9 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Build the `@sentinel/core` tool-agnostic spine (driver contracts, result/error taxonomy, telemetry event model, locator engine) plus the Playwright driver, and migrate the existing auth slice onto it with its live defects fixed.
+**Goal:** Build the `@sentinele2e/core` tool-agnostic spine (driver contracts, result/error taxonomy, telemetry event model, locator engine) plus the Playwright driver, and migrate the existing auth slice onto it with its live defects fixed.
 
-**Architecture:** npm-workspaces monorepo — `@sentinel/contracts` (pure types) ← `@sentinel/core` (result/errors/telemetry/locator) ← `@sentinel/driver-playwright` (the only package importing Playwright). The auth slice lives in `examples/web-erpnext` and consumes the contracts. Every action emits structured telemetry (the seam future AI run-analysis consumes).
+**Architecture:** npm-workspaces monorepo — `@sentinele2e/contracts` (pure types) ← `@sentinele2e/core` (result/errors/telemetry/locator) ← `@sentinele2e/driver-playwright` (the only package importing Playwright). The auth slice lives in `examples/web-erpnext` and consumes the contracts. Every action emits structured telemetry (the seam future AI run-analysis consumes).
 
 **Tech Stack:** TypeScript (strict, `noUncheckedIndexedAccess`, CommonJS, ES2022), Playwright Test 1.60 (also the unit-test runner), ESLint flat config + Prettier + Husky + commitlint, dotenv. Node 22.
 
@@ -21,6 +21,7 @@
 - **Sub-step order:** S1 → S2 → S3 → S4 → S5. Each sub-step is independently verifiable against its acceptance gate before the next begins.
 
 ---
+
 > Sub-step S1 — Monorepo move + tooling
 
 Convert the flat `erpnext-e2e` package into an npm-workspaces monorepo with four wired-but-empty workspace skeletons, base/solution tsconfigs, an ESLint flat-config boundary ban, `.gitignore` hygiene, and a relocated Playwright config — then `git mv` the existing (un-migrated) auth slice into `examples/web-erpnext` so its tests still resolve and run from the new home. Acceptance: `tsc -b` green, `npm run lint` green (typed rules resolve via `projectService`), and the relocated `smoke.spec.ts` passes from `examples/web-erpnext/tests/`.
@@ -28,6 +29,7 @@ Convert the flat `erpnext-e2e` package into an npm-workspaces monorepo with four
 ### S1 — Task 1: Root `package.json` → workspaces + scripts
 
 **Files:**
+
 - Modify: `package.json`
 
 - [ ] **Step 1: Write the failing assertion — root is not yet a workspace root.** Run this; it must FAIL because there is no `workspaces` field and the name is still `erpnext-e2e`.
@@ -106,15 +108,16 @@ Expected: commit-msg hook passes commitlint; one commit recorded.
 
 ---
 
-### S1 — Task 2: `tsconfig.base.json` with explicit `@sentinel/*` paths
+### S1 — Task 2: `tsconfig.base.json` with explicit `@sentinele2e/*` paths
 
 **Files:**
+
 - Create: `tsconfig.base.json`
 
 - [ ] **Step 1: Write the failing assertion — base config does not exist yet.**
 
 ```bash
-node -e "const fs=require('fs'),a=require('assert'); a.ok(fs.existsSync('tsconfig.base.json'),'tsconfig.base.json missing'); const c=JSON.parse(fs.readFileSync('tsconfig.base.json','utf8').replace(/\/\/.*$/gm,'')); const o=c.compilerOptions; a.strictEqual(o.strict,true); a.strictEqual(o.noUncheckedIndexedAccess,true); a.strictEqual(o.module,'CommonJS'); a.strictEqual(o.target,'ES2022'); a.deepStrictEqual(o.paths['@sentinel/core'],['packages/core/src/index.ts']); a.deepStrictEqual(o.paths['@sentinel/contracts/*'],['packages/contracts/src/*']); console.log('OK');"
+node -e "const fs=require('fs'),a=require('assert'); a.ok(fs.existsSync('tsconfig.base.json'),'tsconfig.base.json missing'); const c=JSON.parse(fs.readFileSync('tsconfig.base.json','utf8').replace(/\/\/.*$/gm,'')); const o=c.compilerOptions; a.strictEqual(o.strict,true); a.strictEqual(o.noUncheckedIndexedAccess,true); a.strictEqual(o.module,'CommonJS'); a.strictEqual(o.target,'ES2022'); a.deepStrictEqual(o.paths['@sentinele2e/core'],['packages/core/src/index.ts']); a.deepStrictEqual(o.paths['@sentinele2e/contracts/*'],['packages/contracts/src/*']); console.log('OK');"
 ```
 
 Run: `node -e "..."` (above)
@@ -139,21 +142,23 @@ Expected: throws `AssertionError [ERR_ASSERTION]: tsconfig.base.json missing` (n
     "skipLibCheck": true,
     "baseUrl": ".",
     "paths": {
-      "@sentinel/contracts": ["packages/contracts/src/index.ts"],
-      "@sentinel/contracts/*": ["packages/contracts/src/*"],
-      "@sentinel/core": ["packages/core/src/index.ts"],
-      "@sentinel/core/*": ["packages/core/src/*"],
-      "@sentinel/driver-playwright": ["packages/driver-playwright/src/index.ts"],
-      "@sentinel/driver-playwright/*": ["packages/driver-playwright/src/*"]
-    }
-  }
+      "@sentinele2e/contracts": ["packages/contracts/src/index.ts"],
+      "@sentinele2e/contracts/*": ["packages/contracts/src/*"],
+      "@sentinele2e/core": ["packages/core/src/index.ts"],
+      "@sentinele2e/core/*": ["packages/core/src/*"],
+      "@sentinele2e/driver-playwright": [
+        "packages/driver-playwright/src/index.ts",
+      ],
+      "@sentinele2e/driver-playwright/*": ["packages/driver-playwright/src/*"],
+    },
+  },
 }
 ```
 
 - [ ] **Step 3: Re-run the assertion — now it PASSES.**
 
 ```bash
-node -e "const fs=require('fs'),a=require('assert'); a.ok(fs.existsSync('tsconfig.base.json'),'tsconfig.base.json missing'); const c=JSON.parse(fs.readFileSync('tsconfig.base.json','utf8').replace(/\/\/.*$/gm,'')); const o=c.compilerOptions; a.strictEqual(o.strict,true); a.strictEqual(o.noUncheckedIndexedAccess,true); a.strictEqual(o.module,'CommonJS'); a.strictEqual(o.target,'ES2022'); a.deepStrictEqual(o.paths['@sentinel/core'],['packages/core/src/index.ts']); a.deepStrictEqual(o.paths['@sentinel/contracts/*'],['packages/contracts/src/*']); console.log('OK');"
+node -e "const fs=require('fs'),a=require('assert'); a.ok(fs.existsSync('tsconfig.base.json'),'tsconfig.base.json missing'); const c=JSON.parse(fs.readFileSync('tsconfig.base.json','utf8').replace(/\/\/.*$/gm,'')); const o=c.compilerOptions; a.strictEqual(o.strict,true); a.strictEqual(o.noUncheckedIndexedAccess,true); a.strictEqual(o.module,'CommonJS'); a.strictEqual(o.target,'ES2022'); a.deepStrictEqual(o.paths['@sentinele2e/core'],['packages/core/src/index.ts']); a.deepStrictEqual(o.paths['@sentinele2e/contracts/*'],['packages/contracts/src/*']); console.log('OK');"
 ```
 
 Run: `node -e "..."` (same command)
@@ -171,9 +176,10 @@ Expected: commitlint passes; commit recorded.
 
 ---
 
-### S1 — Task 3: `@sentinel/contracts` skeleton
+### S1 — Task 3: `@sentinele2e/contracts` skeleton
 
 **Files:**
+
 - Create: `packages/contracts/package.json`
 - Create: `packages/contracts/tsconfig.json`
 - Create: `packages/contracts/src/index.ts`
@@ -181,7 +187,7 @@ Expected: commitlint passes; commit recorded.
 - [ ] **Step 1: Write the failing assertion — package does not exist.**
 
 ```bash
-node -e "const fs=require('fs'),a=require('assert'); const p=require('./packages/contracts/package.json'); a.strictEqual(p.name,'@sentinel/contracts'); const t=JSON.parse(fs.readFileSync('packages/contracts/tsconfig.json','utf8')); a.strictEqual(t.compilerOptions.composite,true); a.ok(fs.existsSync('packages/contracts/src/index.ts')); console.log('OK');"
+node -e "const fs=require('fs'),a=require('assert'); const p=require('./packages/contracts/package.json'); a.strictEqual(p.name,'@sentinele2e/contracts'); const t=JSON.parse(fs.readFileSync('packages/contracts/tsconfig.json','utf8')); a.strictEqual(t.compilerOptions.composite,true); a.ok(fs.existsSync('packages/contracts/src/index.ts')); console.log('OK');"
 ```
 
 Run: `node -e "..."` (above)
@@ -191,7 +197,7 @@ Expected: throws `Cannot find module './packages/contracts/package.json'` (non-z
 
 ```json
 {
-  "name": "@sentinel/contracts",
+  "name": "@sentinele2e/contracts",
   "version": "0.0.0",
   "private": true,
   "main": "src/index.ts",
@@ -222,7 +228,7 @@ export {};
 - [ ] **Step 5: Re-run the assertion — now it PASSES.**
 
 ```bash
-node -e "const fs=require('fs'),a=require('assert'); const p=require('./packages/contracts/package.json'); a.strictEqual(p.name,'@sentinel/contracts'); const t=JSON.parse(fs.readFileSync('packages/contracts/tsconfig.json','utf8')); a.strictEqual(t.compilerOptions.composite,true); a.ok(fs.existsSync('packages/contracts/src/index.ts')); console.log('OK');"
+node -e "const fs=require('fs'),a=require('assert'); const p=require('./packages/contracts/package.json'); a.strictEqual(p.name,'@sentinele2e/contracts'); const t=JSON.parse(fs.readFileSync('packages/contracts/tsconfig.json','utf8')); a.strictEqual(t.compilerOptions.composite,true); a.ok(fs.existsSync('packages/contracts/src/index.ts')); console.log('OK');"
 ```
 
 Run: `node -e "..."` (same command)
@@ -232,17 +238,18 @@ Expected: prints `OK` (exit 0).
 
 ```bash
 git add packages/contracts
-git commit -m "feat(contracts): add @sentinel/contracts package skeleton"
+git commit -m "feat(contracts): add @sentinele2e/contracts package skeleton"
 ```
 
-Run: `git commit -m "feat(contracts): add @sentinel/contracts package skeleton"`
+Run: `git commit -m "feat(contracts): add @sentinele2e/contracts package skeleton"`
 Expected: commitlint passes; commit recorded.
 
 ---
 
-### S1 — Task 4: `@sentinel/core` skeleton (refs contracts)
+### S1 — Task 4: `@sentinele2e/core` skeleton (refs contracts)
 
 **Files:**
+
 - Create: `packages/core/package.json`
 - Create: `packages/core/tsconfig.json`
 - Create: `packages/core/src/index.ts`
@@ -250,7 +257,7 @@ Expected: commitlint passes; commit recorded.
 - [ ] **Step 1: Write the failing assertion — package does not exist.**
 
 ```bash
-node -e "const fs=require('fs'),a=require('assert'); const p=require('./packages/core/package.json'); a.strictEqual(p.name,'@sentinel/core'); a.strictEqual(p.dependencies['@sentinel/contracts'],'*'); const t=JSON.parse(fs.readFileSync('packages/core/tsconfig.json','utf8')); a.deepStrictEqual(t.references,[{path:'../contracts'}]); console.log('OK');"
+node -e "const fs=require('fs'),a=require('assert'); const p=require('./packages/core/package.json'); a.strictEqual(p.name,'@sentinele2e/core'); a.strictEqual(p.dependencies['@sentinele2e/contracts'],'*'); const t=JSON.parse(fs.readFileSync('packages/core/tsconfig.json','utf8')); a.deepStrictEqual(t.references,[{path:'../contracts'}]); console.log('OK');"
 ```
 
 Run: `node -e "..."` (above)
@@ -260,13 +267,13 @@ Expected: throws `Cannot find module './packages/core/package.json'` (non-zero e
 
 ```json
 {
-  "name": "@sentinel/core",
+  "name": "@sentinele2e/core",
   "version": "0.0.0",
   "private": true,
   "main": "src/index.ts",
   "types": "src/index.ts",
   "dependencies": {
-    "@sentinel/contracts": "*"
+    "@sentinele2e/contracts": "*"
   }
 }
 ```
@@ -295,7 +302,7 @@ export {};
 - [ ] **Step 5: Re-run the assertion — now it PASSES.**
 
 ```bash
-node -e "const fs=require('fs'),a=require('assert'); const p=require('./packages/core/package.json'); a.strictEqual(p.name,'@sentinel/core'); a.strictEqual(p.dependencies['@sentinel/contracts'],'*'); const t=JSON.parse(fs.readFileSync('packages/core/tsconfig.json','utf8')); a.deepStrictEqual(t.references,[{path:'../contracts'}]); console.log('OK');"
+node -e "const fs=require('fs'),a=require('assert'); const p=require('./packages/core/package.json'); a.strictEqual(p.name,'@sentinele2e/core'); a.strictEqual(p.dependencies['@sentinele2e/contracts'],'*'); const t=JSON.parse(fs.readFileSync('packages/core/tsconfig.json','utf8')); a.deepStrictEqual(t.references,[{path:'../contracts'}]); console.log('OK');"
 ```
 
 Run: `node -e "..."` (same command)
@@ -305,17 +312,18 @@ Expected: prints `OK` (exit 0).
 
 ```bash
 git add packages/core
-git commit -m "feat(core): add @sentinel/core package skeleton"
+git commit -m "feat(core): add @sentinele2e/core package skeleton"
 ```
 
-Run: `git commit -m "feat(core): add @sentinel/core package skeleton"`
+Run: `git commit -m "feat(core): add @sentinele2e/core package skeleton"`
 Expected: commitlint passes; commit recorded.
 
 ---
 
-### S1 — Task 5: `@sentinel/driver-playwright` skeleton (refs contracts + core)
+### S1 — Task 5: `@sentinele2e/driver-playwright` skeleton (refs contracts + core)
 
 **Files:**
+
 - Create: `packages/driver-playwright/package.json`
 - Create: `packages/driver-playwright/tsconfig.json`
 - Create: `packages/driver-playwright/src/index.ts`
@@ -323,7 +331,7 @@ Expected: commitlint passes; commit recorded.
 - [ ] **Step 1: Write the failing assertion — package does not exist.**
 
 ```bash
-node -e "const fs=require('fs'),a=require('assert'); const p=require('./packages/driver-playwright/package.json'); a.strictEqual(p.name,'@sentinel/driver-playwright'); a.strictEqual(p.dependencies['@sentinel/core'],'*'); a.strictEqual(p.dependencies['@sentinel/contracts'],'*'); const t=JSON.parse(fs.readFileSync('packages/driver-playwright/tsconfig.json','utf8')); a.deepStrictEqual(t.references,[{path:'../contracts'},{path:'../core'}]); console.log('OK');"
+node -e "const fs=require('fs'),a=require('assert'); const p=require('./packages/driver-playwright/package.json'); a.strictEqual(p.name,'@sentinele2e/driver-playwright'); a.strictEqual(p.dependencies['@sentinele2e/core'],'*'); a.strictEqual(p.dependencies['@sentinele2e/contracts'],'*'); const t=JSON.parse(fs.readFileSync('packages/driver-playwright/tsconfig.json','utf8')); a.deepStrictEqual(t.references,[{path:'../contracts'},{path:'../core'}]); console.log('OK');"
 ```
 
 Run: `node -e "..."` (above)
@@ -333,14 +341,14 @@ Expected: throws `Cannot find module './packages/driver-playwright/package.json'
 
 ```json
 {
-  "name": "@sentinel/driver-playwright",
+  "name": "@sentinele2e/driver-playwright",
   "version": "0.0.0",
   "private": true,
   "main": "src/index.ts",
   "types": "src/index.ts",
   "dependencies": {
-    "@sentinel/contracts": "*",
-    "@sentinel/core": "*"
+    "@sentinele2e/contracts": "*",
+    "@sentinele2e/core": "*"
   },
   "peerDependencies": {
     "@playwright/test": "^1.58.2"
@@ -373,7 +381,7 @@ export {};
 - [ ] **Step 5: Re-run the assertion — now it PASSES.**
 
 ```bash
-node -e "const fs=require('fs'),a=require('assert'); const p=require('./packages/driver-playwright/package.json'); a.strictEqual(p.name,'@sentinel/driver-playwright'); a.strictEqual(p.dependencies['@sentinel/core'],'*'); a.strictEqual(p.dependencies['@sentinel/contracts'],'*'); const t=JSON.parse(fs.readFileSync('packages/driver-playwright/tsconfig.json','utf8')); a.deepStrictEqual(t.references,[{path:'../contracts'},{path:'../core'}]); console.log('OK');"
+node -e "const fs=require('fs'),a=require('assert'); const p=require('./packages/driver-playwright/package.json'); a.strictEqual(p.name,'@sentinele2e/driver-playwright'); a.strictEqual(p.dependencies['@sentinele2e/core'],'*'); a.strictEqual(p.dependencies['@sentinele2e/contracts'],'*'); const t=JSON.parse(fs.readFileSync('packages/driver-playwright/tsconfig.json','utf8')); a.deepStrictEqual(t.references,[{path:'../contracts'},{path:'../core'}]); console.log('OK');"
 ```
 
 Run: `node -e "..."` (same command)
@@ -383,10 +391,10 @@ Expected: prints `OK` (exit 0).
 
 ```bash
 git add packages/driver-playwright
-git commit -m "feat(web): add @sentinel/driver-playwright package skeleton"
+git commit -m "feat(web): add @sentinele2e/driver-playwright package skeleton"
 ```
 
-Run: `git commit -m "feat(web): add @sentinel/driver-playwright package skeleton"`
+Run: `git commit -m "feat(web): add @sentinele2e/driver-playwright package skeleton"`
 Expected: commitlint passes; commit recorded.
 
 ---
@@ -394,6 +402,7 @@ Expected: commitlint passes; commit recorded.
 ### S1 — Task 6: `examples/web-erpnext` skeleton (refs all three, own `baseUrl`)
 
 **Files:**
+
 - Create: `examples/web-erpnext/package.json`
 - Create: `examples/web-erpnext/tsconfig.json`
 - Create: `examples/web-erpnext/src/index.ts`
@@ -401,7 +410,7 @@ Expected: commitlint passes; commit recorded.
 - [ ] **Step 1: Write the failing assertion — example does not exist; CRITICAL its tsconfig keeps `baseUrl:"."` so the old `src/...` imports resolve from the example root.**
 
 ```bash
-node -e "const fs=require('fs'),a=require('assert'); const p=require('./examples/web-erpnext/package.json'); a.strictEqual(p.name,'@sentinel/example-web-erpnext'); a.strictEqual(p.private,true); a.strictEqual(p.dependencies['@sentinel/driver-playwright'],'*'); const t=JSON.parse(fs.readFileSync('examples/web-erpnext/tsconfig.json','utf8')); a.strictEqual(t.compilerOptions.baseUrl,'.'); a.deepStrictEqual(t.references,[{path:'../../packages/contracts'},{path:'../../packages/core'},{path:'../../packages/driver-playwright'}]); console.log('OK');"
+node -e "const fs=require('fs'),a=require('assert'); const p=require('./examples/web-erpnext/package.json'); a.strictEqual(p.name,'@sentinele2e/example-web-erpnext'); a.strictEqual(p.private,true); a.strictEqual(p.dependencies['@sentinele2e/driver-playwright'],'*'); const t=JSON.parse(fs.readFileSync('examples/web-erpnext/tsconfig.json','utf8')); a.strictEqual(t.compilerOptions.baseUrl,'.'); a.deepStrictEqual(t.references,[{path:'../../packages/contracts'},{path:'../../packages/core'},{path:'../../packages/driver-playwright'}]); console.log('OK');"
 ```
 
 Run: `node -e "..."` (above)
@@ -411,13 +420,13 @@ Expected: throws `Cannot find module './examples/web-erpnext/package.json'` (non
 
 ```json
 {
-  "name": "@sentinel/example-web-erpnext",
+  "name": "@sentinele2e/example-web-erpnext",
   "version": "0.0.0",
   "private": true,
   "dependencies": {
-    "@sentinel/contracts": "*",
-    "@sentinel/core": "*",
-    "@sentinel/driver-playwright": "*",
+    "@sentinele2e/contracts": "*",
+    "@sentinele2e/core": "*",
+    "@sentinele2e/driver-playwright": "*",
     "dotenv": "^17.3.1"
   },
   "devDependencies": {
@@ -455,7 +464,7 @@ export {};
 - [ ] **Step 5: Re-run the assertion — now it PASSES.**
 
 ```bash
-node -e "const fs=require('fs'),a=require('assert'); const p=require('./examples/web-erpnext/package.json'); a.strictEqual(p.name,'@sentinel/example-web-erpnext'); a.strictEqual(p.private,true); a.strictEqual(p.dependencies['@sentinel/driver-playwright'],'*'); const t=JSON.parse(fs.readFileSync('examples/web-erpnext/tsconfig.json','utf8')); a.strictEqual(t.compilerOptions.baseUrl,'.'); a.deepStrictEqual(t.references,[{path:'../../packages/contracts'},{path:'../../packages/core'},{path:'../../packages/driver-playwright'}]); console.log('OK');"
+node -e "const fs=require('fs'),a=require('assert'); const p=require('./examples/web-erpnext/package.json'); a.strictEqual(p.name,'@sentinele2e/example-web-erpnext'); a.strictEqual(p.private,true); a.strictEqual(p.dependencies['@sentinele2e/driver-playwright'],'*'); const t=JSON.parse(fs.readFileSync('examples/web-erpnext/tsconfig.json','utf8')); a.strictEqual(t.compilerOptions.baseUrl,'.'); a.deepStrictEqual(t.references,[{path:'../../packages/contracts'},{path:'../../packages/core'},{path:'../../packages/driver-playwright'}]); console.log('OK');"
 ```
 
 Run: `node -e "..."` (same command)
@@ -476,6 +485,7 @@ Expected: commitlint passes; commit recorded.
 ### S1 — Task 7: Solution-style root `tsconfig.json` (references-only)
 
 **Files:**
+
 - Modify: `tsconfig.json`
 
 - [ ] **Step 1: Write the failing assertion — root tsconfig is still the old flat config (has `include`/`compilerOptions`, no `references`).**
@@ -534,6 +544,7 @@ Expected: commitlint passes; commit recorded.
 ### S1 — Task 8: ESLint flat config — `projectService` + boundary ban
 
 **Files:**
+
 - Modify: `eslint.config.cjs`
 
 - [ ] **Step 1: Write the failing assertion — config still uses `parserOptions.project` and has no `no-restricted-imports` ban.** Loading the flat config and inspecting it must FAIL.
@@ -548,64 +559,67 @@ Expected: throws `AssertionError [ERR_ASSERTION]: projectService not set` (non-z
 - [ ] **Step 2: Replace `eslint.config.cjs`** — switch the typed parser to `projectService: true`, then add the TWO ordered `no-restricted-imports` entries (global ban first, exemption for the three test-runner/driver dirs last; last match wins):
 
 ```js
-const tseslint = require('@typescript-eslint/eslint-plugin');
-const tsParser = require('@typescript-eslint/parser');
-const eslintConfigPrettier = require('eslint-config-prettier');
+const tseslint = require("@typescript-eslint/eslint-plugin");
+const tsParser = require("@typescript-eslint/parser");
+const eslintConfigPrettier = require("eslint-config-prettier");
 
 module.exports = [
   {
     ignores: [
-      'dist/**',
-      '**/dist/**',
-      'node_modules/**',
-      'playwright-report/**',
-      'test-results/**',
+      "dist/**",
+      "**/dist/**",
+      "node_modules/**",
+      "playwright-report/**",
+      "test-results/**",
     ],
   },
   {
-    files: ['**/*.ts'],
+    files: ["**/*.ts"],
     languageOptions: {
       parser: tsParser,
       parserOptions: {
         projectService: true,
         tsconfigRootDir: __dirname,
-        sourceType: 'module',
+        sourceType: "module",
       },
     },
     plugins: {
-      '@typescript-eslint': tseslint,
+      "@typescript-eslint": tseslint,
     },
     rules: {
       // Core correctness
-      'no-console': 'off',
-      'no-debugger': 'error',
+      "no-console": "off",
+      "no-debugger": "error",
 
       // TypeScript best-practices (strict but sane)
-      '@typescript-eslint/no-floating-promises': 'error',
-      '@typescript-eslint/no-misused-promises': 'error',
-      '@typescript-eslint/await-thenable': 'error',
-      '@typescript-eslint/consistent-type-imports': ['error', { prefer: 'type-imports' }],
+      "@typescript-eslint/no-floating-promises": "error",
+      "@typescript-eslint/no-misused-promises": "error",
+      "@typescript-eslint/await-thenable": "error",
+      "@typescript-eslint/consistent-type-imports": [
+        "error",
+        { prefer: "type-imports" },
+      ],
 
       // Style kept mostly to Prettier; don't fight formatting in ESLint.
     },
   },
   {
     // SEAM boundary: app/flow/component code must not import Playwright.
-    files: ['**/*.ts'],
+    files: ["**/*.ts"],
     rules: {
-      'no-restricted-imports': [
-        'error',
+      "no-restricted-imports": [
+        "error",
         {
           paths: [
             {
-              name: '@playwright/test',
+              name: "@playwright/test",
               message:
-                'Playwright is confined to @sentinel/driver-playwright and test-runner dirs.',
+                "Playwright is confined to @sentinele2e/driver-playwright and test-runner dirs.",
             },
             {
-              name: 'playwright',
+              name: "playwright",
               message:
-                'Playwright is confined to @sentinel/driver-playwright and test-runner dirs.',
+                "Playwright is confined to @sentinele2e/driver-playwright and test-runner dirs.",
             },
           ],
         },
@@ -615,12 +629,12 @@ module.exports = [
   {
     // Exemption (last match wins): the driver adapter + all test-runner dirs.
     files: [
-      'packages/driver-playwright/**/*.ts',
-      'packages/**/tests/**',
-      'examples/web-erpnext/tests/**',
+      "packages/driver-playwright/**/*.ts",
+      "packages/**/tests/**",
+      "examples/web-erpnext/tests/**",
     ],
     rules: {
-      'no-restricted-imports': 'off',
+      "no-restricted-imports": "off",
     },
   },
   eslintConfigPrettier,
@@ -660,6 +674,7 @@ Expected: commitlint passes; commit recorded.
 ### S1 — Task 9: `.gitignore` hygiene
 
 **Files:**
+
 - Modify: `.gitignore`
 
 - [ ] **Step 1: Write the failing assertion — VCS ignore lacks `test-results/` and `playwright-report/`.**
@@ -704,6 +719,7 @@ Expected: commitlint passes; the stale `test-results/.last-run.json` is untracke
 ### S1 — Task 10: Root `playwright.unit.config.ts` (unit runner)
 
 **Files:**
+
 - Create: `playwright.unit.config.ts`
 
 - [ ] **Step 1: Write the failing test — a placeholder unit test in a package, run via the not-yet-existing unit config, must fail to find a config.** First create the probe test file so the runner has something to discover:
@@ -767,6 +783,7 @@ Expected: commitlint passes; commit recorded.
 ### S1 — Task 11: Relocate the Playwright e2e config under the example
 
 **Files:**
+
 - Create: `examples/web-erpnext/playwright.config.ts` (moved from root)
 - Delete: `playwright.config.ts` (root)
 
@@ -835,6 +852,7 @@ Expected: commitlint passes; commit recorded.
 ### S1 — Task 12: `git mv` the existing auth tree into the example
 
 **Files:**
+
 - Move: `src/**` → `examples/web-erpnext/src/**`
 - Move: `tests/**` → `examples/web-erpnext/tests/**`
 - Delete: temporary `examples/web-erpnext/src/index.ts` seed (replaced by the real moved tree)
@@ -898,6 +916,7 @@ Expected: commitlint passes; commit recorded (renames preserved).
 ### S1 — Task 13: Verify S1 acceptance — lint, typecheck, relocated smoke green
 
 **Files:**
+
 - (no file changes — verification + final commit of any formatting)
 
 - [ ] **Step 1: Run the full static-analysis gate.** Both must be green: `projectService` resolves typed rules across `packages/**` + `examples/**`; the `no-restricted-imports` ban reports no `@playwright/test` import outside the driver + test-runner dirs (the moved app/flow/component code still imports `@playwright/test` in the OLD version — confirm those files live ONLY where the exemption or driver allows, OR that lint flags them so S4 is forced to fix them).
@@ -914,7 +933,7 @@ Expected: `tsc -b` exits 0. NOTE: `npm run lint` is EXPECTED to report `no-restr
 ```js
   {
     // TEMPORARY (S1 → removed in S4): the migrated auth slice is still the
-    // OLD Playwright-coupled version. Its rewrite onto @sentinel/driver-playwright
+    // OLD Playwright-coupled version. Its rewrite onto @sentinele2e/driver-playwright
     // happens in S4, which deletes this block. Until then, exempt the moved
     // app/flow/component code from the Playwright import ban.
     files: ['examples/web-erpnext/src/**/*.ts'],
@@ -954,7 +973,6 @@ git commit -m "chore(repo): temp-exempt un-migrated example app from playwright 
 Run: `git commit -m "chore(repo): temp-exempt un-migrated example app from playwright ban"`
 Expected: commitlint passes; commit recorded. S1 acceptance met: `tsc -b` green, `npm run lint` green, relocated `smoke.spec.ts` passing from its new home.
 
-
 I have authored the complete S1 plan fragment above. Here is a summary of what I produced and the key grounding decisions, since this output is returned to the calling script.
 
 ## Summary
@@ -962,18 +980,20 @@ I have authored the complete S1 plan fragment above. Here is a summary of what I
 I wrote the full set of 13 bite-sized TDD tasks for sub-step **S1 — Monorepo move + tooling**, emitted as a markdown fragment in the required format (one-line `> Sub-step S1` header + 2-sentence summary, then `### S1 — Task N:` headings, `**Files:**` blocks, and `- [ ]` checkbox steps with fenced code, `Run:`/`Expected:` lines, and a Conventional-Commit step per task).
 
 ### Task breakdown
+
 1. Root `package.json` → workspaces, `sentinel-monorepo` name, scripts per conventions
 2. `tsconfig.base.json` with the EXACT spec §2 `paths` block
-3–6. The four workspace skeletons (`contracts`, `core`, `driver-playwright`, `examples/web-erpnext`) with package.json + composite tsconfig + `export {}` seed
-7. Solution-style references-only root `tsconfig.json` + first `tsc -b` green gate
-8. ESLint flat config: `projectService: true` + two ordered `no-restricted-imports` entries
-9. `.gitignore` additions (`test-results/`, `playwright-report/`)
-10. Root `playwright.unit.config.ts` (unit runner)
-11. Relocate the Playwright e2e config to `examples/web-erpnext/`
-12. `git mv` the auth tree into the example
-13. S1 acceptance verification (lint + typecheck + relocated `smoke.spec.ts`)
+   3–6. The four workspace skeletons (`contracts`, `core`, `driver-playwright`, `examples/web-erpnext`) with package.json + composite tsconfig + `export {}` seed
+3. Solution-style references-only root `tsconfig.json` + first `tsc -b` green gate
+4. ESLint flat config: `projectService: true` + two ordered `no-restricted-imports` entries
+5. `.gitignore` additions (`test-results/`, `playwright-report/`)
+6. Root `playwright.unit.config.ts` (unit runner)
+7. Relocate the Playwright e2e config to `examples/web-erpnext/`
+8. `git mv` the auth tree into the example
+9. S1 acceptance verification (lint + typecheck + relocated `smoke.spec.ts`)
 
 ### Key grounding findings that shaped the plan
+
 - **commitlint** (`commitlint.config.cjs`) restricts types to `feat|fix|refactor|test|chore|docs` and bans sentence/start/pascal-case subjects — every commit message I wrote conforms (lowercase, allowed type, conventions' scopes core/contracts/web/repo/example).
 - The old auth tree uses **`src/...` baseUrl imports** (`src/selectors`, `src/domain/auth`, `src/ui`, `src/flows`, `src/config/env`) confirmed across `log-in.ts`, `log-in-page.ts`, `log-in-form.ts`, `playwright.config.ts`, and the fixtures — so the example tsconfig sets its own `baseUrl: "."` to keep them resolving unchanged. The specs also use relative `../../src/flows`, which also resolves post-move.
 - `test-results/.last-run.json` is **already tracked**, so Task 9 includes `git rm --cached` to make the new ignore effective.
@@ -984,15 +1004,16 @@ Relevant files I read to ground the tasks: `/Users/zeeshan.amjad/Documents/senti
 
 ---
 
-> Sub-step S2 — `@sentinel/contracts` + `@sentinel/core` types
+> Sub-step S2 — `@sentinele2e/contracts` + `@sentinele2e/core` types
 
-This sub-step authors the two pure-TypeScript framework packages: `@sentinel/contracts` (driver-agnostic interfaces, zero runtime deps) and `@sentinel/core` (result factories, the system-failure error taxonomy, the telemetry event/sink/span model with `JsonlSink`, and the locator `StrategyRegistry` + engine interfaces). Every behavior is driven test-first with Playwright-runner unit tests under `packages/contracts/tests/**` and `packages/core/tests/**`; no driver code is written here.
+This sub-step authors the two pure-TypeScript framework packages: `@sentinele2e/contracts` (driver-agnostic interfaces, zero runtime deps) and `@sentinele2e/core` (result factories, the system-failure error taxonomy, the telemetry event/sink/span model with `JsonlSink`, and the locator `StrategyRegistry` + engine interfaces). Every behavior is driven test-first with Playwright-runner unit tests under `packages/contracts/tests/**` and `packages/core/tests/**`; no driver code is written here.
 
-> **Preconditions (from S1):** the workspace is wired — `packages/contracts/{package.json,tsconfig.json}` and `packages/core/{package.json,tsconfig.json}` exist with `composite:true` and the `@sentinel/*` `paths`/`references` from spec §2; the root `playwright.unit.config.ts` (`testDir:"."`, `testMatch:"packages/**/tests/**/*.test.ts"`, headless, no `baseURL`) exists; root scripts `typecheck`/`test:unit` exist; the ESLint `no-restricted-imports` exemption already covers `packages/**/tests/**`. S2 only adds `src/**` and `tests/**` files inside the two packages.
+> **Preconditions (from S1):** the workspace is wired — `packages/contracts/{package.json,tsconfig.json}` and `packages/core/{package.json,tsconfig.json}` exist with `composite:true` and the `@sentinele2e/*` `paths`/`references` from spec §2; the root `playwright.unit.config.ts` (`testDir:"."`, `testMatch:"packages/**/tests/**/*.test.ts"`, headless, no `baseURL`) exists; root scripts `typecheck`/`test:unit` exist; the ESLint `no-restricted-imports` exemption already covers `packages/**/tests/**`. S2 only adds `src/**` and `tests/**` files inside the two packages.
 
 ### S2 — Task 1: Contracts — capability + locator + element types
 
 **Files:**
+
 - Create: `packages/contracts/src/capability.ts`
 - Create: `packages/contracts/src/locator.ts`
 - Create: `packages/contracts/src/element.ts`
@@ -1011,7 +1032,7 @@ This sub-step authors the two pure-TypeScript framework packages: `@sentinel/con
     LocatorStrategy,
     Locator,
     ElementHandle,
-  } from "@sentinel/contracts";
+  } from "@sentinele2e/contracts";
 
   test("Capability values are the documented union members", () => {
     const caps: Capability[] = [
@@ -1054,12 +1075,21 @@ This sub-step authors the two pure-TypeScript framework packages: `@sentinel/con
         { kind: "css", value: "button.btn-login[type='submit']" },
       ],
       within(parent: Locator): Locator {
-        return { ...this, logicalName: `${parent.logicalName}>${this.logicalName}` };
+        return {
+          ...this,
+          logicalName: `${parent.logicalName}>${this.logicalName}`,
+        };
       },
     };
-    const parent: Locator = { logicalName: "auth.card", candidates: [], within: child.within };
+    const parent: Locator = {
+      logicalName: "auth.card",
+      candidates: [],
+      within: child.within,
+    };
     expect(child.candidates[0]?.kind).toBe("role");
-    expect(child.within(parent).logicalName).toBe("auth.card>auth.login.submit");
+    expect(child.within(parent).logicalName).toBe(
+      "auth.card>auth.login.submit",
+    );
   });
 
   test("ElementHandle is satisfiable", async () => {
@@ -1079,8 +1109,9 @@ This sub-step authors the two pure-TypeScript framework packages: `@sentinel/con
   ```bash
   npm run test:unit -- packages/contracts/tests/capability-locator.test.ts
   ```
+
   Run: `npm run test:unit -- packages/contracts/tests/capability-locator.test.ts`
-  Expected: fails — `Error: Cannot find module '@sentinel/contracts'` (or `Cannot find package '@sentinel/contracts'`).
+  Expected: fails — `Error: Cannot find module '@sentinele2e/contracts'` (or `Cannot find package '@sentinele2e/contracts'`).
 
 - [ ] **Step 2: Author `capability.ts`** (copied verbatim from spec §3.1).
 
@@ -1153,6 +1184,7 @@ This sub-step authors the two pure-TypeScript framework packages: `@sentinel/con
   ```bash
   npm run test:unit -- packages/contracts/tests/capability-locator.test.ts
   ```
+
   Run: `npm run test:unit -- packages/contracts/tests/capability-locator.test.ts`
   Expected: `5 passed`.
 
@@ -1162,12 +1194,14 @@ This sub-step authors the two pure-TypeScript framework packages: `@sentinel/con
   git add packages/contracts/src/capability.ts packages/contracts/src/locator.ts packages/contracts/src/element.ts packages/contracts/src/index.ts packages/contracts/tests/capability-locator.test.ts
   git commit -m "feat(contracts): capability, locator and element contracts"
   ```
+
   Run: `git commit -m "feat(contracts): capability, locator and element contracts"`
   Expected: commit succeeds (commitlint + lint-staged pass); one commit created.
 
 ### S2 — Task 2: Contracts — action + gesture-target types
 
 **Files:**
+
 - Create: `packages/contracts/src/action.ts`
 - Modify: `packages/contracts/src/index.ts`
 - Test: `packages/contracts/tests/action.test.ts`
@@ -1177,7 +1211,7 @@ This sub-step authors the two pure-TypeScript framework packages: `@sentinel/con
   ```ts
   // packages/contracts/tests/action.test.ts
   import { test, expect } from "@playwright/test";
-  import type { GestureTarget, Action, Locator } from "@sentinel/contracts";
+  import type { GestureTarget, Action, Locator } from "@sentinele2e/contracts";
 
   const loc: Locator = { logicalName: "x", candidates: [], within: (p) => p };
 
@@ -1209,7 +1243,7 @@ This sub-step authors the two pure-TypeScript framework packages: `@sentinel/con
   ```
 
   Run: `npm run test:unit -- packages/contracts/tests/action.test.ts`
-  Expected: fails — `Module '"@sentinel/contracts"' has no exported member 'GestureTarget'` / `'Action'` (or a resolution error at runtime).
+  Expected: fails — `Module '"@sentinele2e/contracts"' has no exported member 'GestureTarget'` / `'Action'` (or a resolution error at runtime).
 
 - [ ] **Step 2: Author `action.ts`** (spec §3.4 + §3.5, verbatim).
 
@@ -1220,7 +1254,11 @@ This sub-step authors the two pure-TypeScript framework packages: `@sentinel/con
   export type GestureTarget =
     | { readonly kind: "element"; readonly locator: Locator }
     | { readonly kind: "point"; readonly x: number; readonly y: number }
-    | { readonly kind: "percent"; readonly xPct: number; readonly yPct: number };
+    | {
+        readonly kind: "percent";
+        readonly xPct: number;
+        readonly yPct: number;
+      };
 
   export interface Action {
     // UNIVERSAL surface — genuinely total across web + native. Neutral verb is "tap", not "click".
@@ -1261,12 +1299,14 @@ This sub-step authors the two pure-TypeScript framework packages: `@sentinel/con
   git add packages/contracts/src/action.ts packages/contracts/src/index.ts packages/contracts/tests/action.test.ts
   git commit -m "feat(contracts): action surface and gesture targets"
   ```
+
   Run: `git commit -m "feat(contracts): action surface and gesture targets"`
   Expected: commit succeeds; one commit created.
 
 ### S2 — Task 3: Contracts — assertion types (ElementState, BranchProgress, Assertion)
 
 **Files:**
+
 - Create: `packages/contracts/src/assertion.ts`
 - Modify: `packages/contracts/src/index.ts`
 - Test: `packages/contracts/tests/assertion.test.ts`
@@ -1281,12 +1321,18 @@ This sub-step authors the two pure-TypeScript framework packages: `@sentinel/con
     BranchProgress,
     Assertion,
     Locator,
-  } from "@sentinel/contracts";
+  } from "@sentinele2e/contracts";
 
   const loc: Locator = { logicalName: "x", candidates: [], within: (p) => p };
 
   test("ElementState union members are usable", () => {
-    const states: ElementState[] = ["attached", "detached", "visible", "hidden", "enabled"];
+    const states: ElementState[] = [
+      "attached",
+      "detached",
+      "visible",
+      "hidden",
+      "enabled",
+    ];
     expect(states).toContain("visible");
   });
 
@@ -1322,7 +1368,12 @@ This sub-step authors the two pure-TypeScript framework packages: `@sentinel/con
   // packages/contracts/src/assertion.ts
   import type { Locator } from "./locator";
 
-  export type ElementState = "attached" | "detached" | "visible" | "hidden" | "enabled";
+  export type ElementState =
+    | "attached"
+    | "detached"
+    | "visible"
+    | "hidden"
+    | "enabled";
 
   export interface BranchProgress<L extends string = string> {
     readonly label: L;
@@ -1332,12 +1383,20 @@ This sub-step authors the two pure-TypeScript framework packages: `@sentinel/con
 
   export interface Assertion {
     /** Resolves on success; THROWS TimeoutError (with timings + artifacts) on timeout. NEVER returns on timeout. */
-    waitFor(target: Locator, state: ElementState, opts?: { timeoutMs?: number }): Promise<void>;
+    waitFor(
+      target: Locator,
+      state: ElementState,
+      opts?: { timeoutMs?: number },
+    ): Promise<void>;
 
     /** Driver-owned race. Returns the winning label. On no winner, throws TimeoutError whose context
      *  carries per-branch BranchProgress[]. The driver OWNS loser-cancellation (no unhandled rejections). */
     waitForFirstOf<L extends string>(
-      conditions: ReadonlyArray<{ label: L; target: Locator; state: ElementState }>,
+      conditions: ReadonlyArray<{
+        label: L;
+        target: Locator;
+        state: ElementState;
+      }>,
       opts?: { timeoutMs?: number },
     ): Promise<L>;
   }
@@ -1365,18 +1424,20 @@ This sub-step authors the two pure-TypeScript framework packages: `@sentinel/con
   git add packages/contracts/src/assertion.ts packages/contracts/src/index.ts packages/contracts/tests/assertion.test.ts
   git commit -m "feat(contracts): assertion primitives and branch progress"
   ```
+
   Run: `git commit -m "feat(contracts): assertion primitives and branch progress"`
   Expected: commit succeeds; one commit created.
 
 ### S2 — Task 4: Contracts — session + driver types and full barrel
 
 **Files:**
+
 - Create: `packages/contracts/src/session.ts`
 - Create: `packages/contracts/src/driver.ts`
 - Modify: `packages/contracts/src/index.ts`
 - Test: `packages/contracts/tests/session-driver.test.ts`
 
-> Note: `Session.telemetry` is typed `TelemetrySink` in spec §3.7, but the sink type lives in `@sentinel/core`, which depends on `@sentinel/contracts` (not vice-versa). To keep `@sentinel/contracts` dependency-free we model `telemetry` with a minimal structural `TelemetrySinkLike` declared inline in `session.ts` (`emit(event: unknown): void; child(name: string): TelemetrySinkLike;`). `@sentinel/core`'s `TelemetrySink` is structurally assignable to it, so the example session still type-checks. This is the smallest change preserving the no-cycle layering; no public name from the spec is changed.
+> Note: `Session.telemetry` is typed `TelemetrySink` in spec §3.7, but the sink type lives in `@sentinele2e/core`, which depends on `@sentinele2e/contracts` (not vice-versa). To keep `@sentinele2e/contracts` dependency-free we model `telemetry` with a minimal structural `TelemetrySinkLike` declared inline in `session.ts` (`emit(event: unknown): void; child(name: string): TelemetrySinkLike;`). `@sentinele2e/core`'s `TelemetrySink` is structurally assignable to it, so the example session still type-checks. This is the smallest change preserving the no-cycle layering; no public name from the spec is changed.
 
 - [ ] **Step 1: Write the failing test.** Builds a `Driver` and a `Session` exposing only the universal surface (navigation/contexts/screenshot omitted, since they are optional), and asserts capability sets are `ReadonlySet`.
 
@@ -1392,7 +1453,7 @@ This sub-step authors the two pure-TypeScript framework packages: `@sentinel/con
     ElementHandle,
     Action,
     Assertion,
-  } from "@sentinel/contracts";
+  } from "@sentinele2e/contracts";
 
   const noopAction: Action = {
     tap: async () => {},
@@ -1438,8 +1499,7 @@ This sub-step authors the two pure-TypeScript framework packages: `@sentinel/con
       name: "playwright",
       capabilities: new Set<Capability>(["dom", "navigation"]),
       strategies,
-      createSession: async () =>
-        ({}) as unknown as Session,
+      createSession: async () => ({}) as unknown as Session,
     };
     expect(driver.strategies.has("css")).toBe(true);
     expect(config.defaultTimeoutMs).toBe(10_000);
@@ -1460,8 +1520,8 @@ This sub-step authors the two pure-TypeScript framework packages: `@sentinel/con
   import type { Action } from "./action";
   import type { Assertion } from "./assertion";
 
-  /** Structural minimum of a telemetry sink, declared here to keep @sentinel/contracts
-   *  dependency-free. @sentinel/core's TelemetrySink is structurally assignable to this. */
+  /** Structural minimum of a telemetry sink, declared here to keep @sentinele2e/contracts
+   *  dependency-free. @sentinele2e/core's TelemetrySink is structurally assignable to this. */
   export interface TelemetrySinkLike {
     emit(event: unknown): void;
     child(name: string): TelemetrySinkLike;
@@ -1513,7 +1573,10 @@ This sub-step authors the two pure-TypeScript framework packages: `@sentinel/con
     readonly name: string; // "playwright" | "appium-uiautomator2"
     readonly capabilities: ReadonlySet<Capability>;
     readonly strategies: ReadonlySet<StrategyKind>; // which locator kinds this driver can compile
-    createSession(config: SessionConfig, telemetry: TelemetrySinkLike): Promise<Session>;
+    createSession(
+      config: SessionConfig,
+      telemetry: TelemetrySinkLike,
+    ): Promise<Session>;
   }
   ```
 
@@ -1536,6 +1599,7 @@ This sub-step authors the two pure-TypeScript framework packages: `@sentinel/con
   npm run test:unit -- packages/contracts/tests/session-driver.test.ts
   npm run typecheck
   ```
+
   Run: `npm run test:unit -- packages/contracts/tests/session-driver.test.ts`
   Expected: `2 passed`.
   Run: `npm run typecheck`
@@ -1547,12 +1611,14 @@ This sub-step authors the two pure-TypeScript framework packages: `@sentinel/con
   git add packages/contracts/src/session.ts packages/contracts/src/driver.ts packages/contracts/src/index.ts packages/contracts/tests/session-driver.test.ts
   git commit -m "feat(contracts): session and driver interfaces"
   ```
+
   Run: `git commit -m "feat(contracts): session and driver interfaces"`
   Expected: commit succeeds; one commit created.
 
 ### S2 — Task 5: Core — Result model types + factories
 
 **Files:**
+
 - Create: `packages/core/src/result/result.ts`
 - Create: `packages/core/src/result/factory.ts`
 - Create: `packages/core/src/result/index.ts`
@@ -1570,7 +1636,7 @@ This sub-step authors the two pure-TypeScript framework packages: `@sentinel/con
     assertNever,
     type Result,
     type ResultMeta,
-  } from "@sentinel/core";
+  } from "@sentinele2e/core";
 
   const meta: ResultMeta = {
     correlationId: "run-1",
@@ -1620,12 +1686,14 @@ This sub-step authors the two pure-TypeScript framework packages: `@sentinel/con
       }
     };
     expect(run()).toBe(1);
-    expect(() => assertNever({ status: "ghost" } as never)).toThrow(/Unhandled Result variant/);
+    expect(() => assertNever({ status: "ghost" } as never)).toThrow(
+      /Unhandled Result variant/,
+    );
   });
   ```
 
   Run: `npm run test:unit -- packages/core/tests/result.test.ts`
-  Expected: fails — `Cannot find module '@sentinel/core'`.
+  Expected: fails — `Cannot find module '@sentinele2e/core'`.
 
 - [ ] **Step 2: Author `result/result.ts`** (spec §4, verbatim).
 
@@ -1651,7 +1719,9 @@ This sub-step authors the two pure-TypeScript framework packages: `@sentinel/con
     readonly details?: D;
     readonly meta: ResultMeta;
   }
-  export type Result<T, R extends string = string, D = unknown> = Success<T> | BusinessFailure<R, D>;
+  export type Result<T, R extends string = string, D = unknown> =
+    | Success<T>
+    | BusinessFailure<R, D>;
   ```
 
 - [ ] **Step 3: Author `result/factory.ts`** (spec §4, verbatim).
@@ -1660,7 +1730,11 @@ This sub-step authors the two pure-TypeScript framework packages: `@sentinel/con
   // packages/core/src/result/factory.ts
   import type { Result, Success, BusinessFailure, ResultMeta } from "./result";
 
-  export const ok = <T>(data: T, meta: ResultMeta): Success<T> => ({ status: "success", data, meta });
+  export const ok = <T>(data: T, meta: ResultMeta): Success<T> => ({
+    status: "success",
+    data,
+    meta,
+  });
 
   export const businessFailure = <R extends string, D = unknown>(
     reason: R,
@@ -1674,8 +1748,9 @@ This sub-step authors the two pure-TypeScript framework packages: `@sentinel/con
     meta,
   });
 
-  export const isSuccess = <T, R extends string, D>(r: Result<T, R, D>): r is Success<T> =>
-    r.status === "success";
+  export const isSuccess = <T, R extends string, D>(
+    r: Result<T, R, D>,
+  ): r is Success<T> => r.status === "success";
 
   export const assertNever = (x: never): never => {
     throw new Error(`Unhandled Result variant: ${JSON.stringify(x)}`);
@@ -1706,12 +1781,14 @@ This sub-step authors the two pure-TypeScript framework packages: `@sentinel/con
   git add packages/core/src/result/result.ts packages/core/src/result/factory.ts packages/core/src/result/index.ts packages/core/src/index.ts packages/core/tests/result.test.ts
   git commit -m "feat(core): result model and factories"
   ```
+
   Run: `git commit -m "feat(core): result model and factories"`
   Expected: commit succeeds; one commit created.
 
 ### S2 — Task 6: Core — error taxonomy base + Artifact + context
 
 **Files:**
+
 - Create: `packages/core/src/errors/system-failure-error.ts`
 - Test: `packages/core/tests/system-failure-error.test.ts`
 
@@ -1725,7 +1802,7 @@ This sub-step authors the two pure-TypeScript framework packages: `@sentinel/con
     type SystemFailureContext,
     type SystemFailureKind,
     type Artifact,
-  } from "@sentinel/core";
+  } from "@sentinele2e/core";
 
   class FakeError extends SystemFailureError {
     readonly kind: SystemFailureKind = "timeout";
@@ -1777,7 +1854,11 @@ This sub-step authors the two pure-TypeScript framework packages: `@sentinel/con
 
   ```ts
   // packages/core/src/errors/system-failure-error.ts
-  import type { Capability, StrategyKind, BranchProgress } from "@sentinel/contracts";
+  import type {
+    Capability,
+    StrategyKind,
+    BranchProgress,
+  } from "@sentinele2e/contracts";
 
   export type SystemFailureKind =
     | "timeout"
@@ -1788,7 +1869,13 @@ This sub-step authors the two pure-TypeScript framework packages: `@sentinel/con
     | "capability-unsupported";
 
   export interface Artifact {
-    readonly kind: "screenshot" | "dom-snapshot" | "a11y-snapshot" | "trace" | "console-log" | "har";
+    readonly kind:
+      | "screenshot"
+      | "dom-snapshot"
+      | "a11y-snapshot"
+      | "trace"
+      | "console-log"
+      | "har";
     readonly ref?: string;
     readonly inline?: string;
   }
@@ -1800,7 +1887,11 @@ This sub-step authors the two pure-TypeScript framework packages: `@sentinel/con
     readonly durationMs: number; // elapsed before failure
     readonly artifacts?: readonly Artifact[];
     readonly logicalName?: string; // for selector-* kinds: which element
-    readonly attempted?: readonly { strategy: StrategyKind; matched: boolean; rank: number }[];
+    readonly attempted?: readonly {
+      strategy: StrategyKind;
+      matched: boolean;
+      rank: number;
+    }[];
     readonly branchProgress?: readonly BranchProgress[]; // for waitForFirstOf timeouts (disambiguation)
     readonly capability?: Capability; // for capability-unsupported
     readonly cause?: unknown; // raw driver error preserved
@@ -1815,7 +1906,8 @@ This sub-step authors the two pure-TypeScript framework packages: `@sentinel/con
     ) {
       super(message);
       this.name = new.target.name;
-      if (context.cause !== undefined) (this as { cause?: unknown }).cause = context.cause;
+      if (context.cause !== undefined)
+        (this as { cause?: unknown }).cause = context.cause;
       Error.captureStackTrace?.(this, new.target);
     }
   }
@@ -1832,12 +1924,14 @@ This sub-step authors the two pure-TypeScript framework packages: `@sentinel/con
   git add packages/core/src/errors/system-failure-error.ts packages/core/tests/system-failure-error.test.ts
   git commit -m "feat(core): system failure error base and context"
   ```
+
   Run: `git commit -m "feat(core): system failure error base and context"`
   Expected: commit succeeds; one commit created.
 
 ### S2 — Task 7: Core — the six typed error subclasses + isSystemFailure
 
 **Files:**
+
 - Create: `packages/core/src/errors/kinds.ts`
 - Create: `packages/core/src/errors/index.ts`
 - Modify: `packages/core/src/index.ts`
@@ -1858,7 +1952,7 @@ This sub-step authors the two pure-TypeScript framework packages: `@sentinel/con
     isSystemFailure,
     SystemFailureError,
     type SystemFailureContext,
-  } from "@sentinel/core";
+  } from "@sentinele2e/core";
 
   const ctx: SystemFailureContext = {
     correlationId: "run-1",
@@ -1869,7 +1963,12 @@ This sub-step authors the two pure-TypeScript framework packages: `@sentinel/con
 
   test("each subclass has the specified kind, retryable and name", () => {
     const cases = [
-      { e: new TimeoutError("t", ctx), kind: "timeout", retryable: true, name: "TimeoutError" },
+      {
+        e: new TimeoutError("t", ctx),
+        kind: "timeout",
+        retryable: true,
+        name: "TimeoutError",
+      },
       {
         e: new SelectorNotFoundError("s", ctx),
         kind: "selector-not-found",
@@ -1923,7 +2022,10 @@ This sub-step authors the two pure-TypeScript framework packages: `@sentinel/con
 
   ```ts
   // packages/core/src/errors/kinds.ts
-  import { SystemFailureError, type SystemFailureKind } from "./system-failure-error";
+  import {
+    SystemFailureError,
+    type SystemFailureKind,
+  } from "./system-failure-error";
 
   export class TimeoutError extends SystemFailureError {
     readonly kind: SystemFailureKind = "timeout";
@@ -1992,6 +2094,7 @@ This sub-step authors the two pure-TypeScript framework packages: `@sentinel/con
   npm run test:unit -- packages/core/tests/error-kinds.test.ts
   npm run typecheck
   ```
+
   Run: `npm run test:unit -- packages/core/tests/error-kinds.test.ts`
   Expected: `2 passed`.
   Run: `npm run typecheck`
@@ -2003,12 +2106,14 @@ This sub-step authors the two pure-TypeScript framework packages: `@sentinel/con
   git add packages/core/src/errors/kinds.ts packages/core/src/errors/index.ts packages/core/src/index.ts packages/core/tests/error-kinds.test.ts
   git commit -m "feat(core): typed system failure subclasses and guard"
   ```
+
   Run: `git commit -m "feat(core): typed system failure subclasses and guard"`
   Expected: commit succeeds; one commit created.
 
 ### S2 — Task 8: Core — telemetry envelope + Timing + event types
 
 **Files:**
+
 - Create: `packages/core/src/telemetry/event.ts`
 - Test: `packages/core/tests/telemetry-event.test.ts`
 
@@ -2023,7 +2128,7 @@ This sub-step authors the two pure-TypeScript framework packages: `@sentinel/con
     type SpanStatus,
     type TelemetryEventType,
     type TelemetryEnvelope,
-  } from "@sentinel/core";
+  } from "@sentinele2e/core";
 
   test("schema version is 1.0.0", () => {
     expect(TELEMETRY_SCHEMA_VERSION).toBe("1.0.0");
@@ -2089,7 +2194,9 @@ This sub-step authors the two pure-TypeScript framework packages: `@sentinel/con
     | "business.failure"
     | "system.failure";
 
-  export interface TelemetryEnvelope<T extends TelemetryEventType = TelemetryEventType> {
+  export interface TelemetryEnvelope<
+    T extends TelemetryEventType = TelemetryEventType,
+  > {
     schemaVersion: string;
     eventId: string; // uuid
     type: T;
@@ -2115,12 +2222,14 @@ This sub-step authors the two pure-TypeScript framework packages: `@sentinel/con
   git add packages/core/src/telemetry/event.ts packages/core/tests/telemetry-event.test.ts
   git commit -m "feat(core): telemetry envelope and timing model"
   ```
+
   Run: `git commit -m "feat(core): telemetry envelope and timing model"`
   Expected: commit succeeds; one commit created.
 
 ### S2 — Task 9: Core — typed signal event interfaces + TelemetryEvent union
 
 **Files:**
+
 - Create: `packages/core/src/telemetry/signals.ts`
 - Test: `packages/core/tests/telemetry-signals.test.ts`
 
@@ -2129,7 +2238,7 @@ This sub-step authors the two pure-TypeScript framework packages: `@sentinel/con
   ```ts
   // packages/core/tests/telemetry-signals.test.ts
   import { test, expect } from "@playwright/test";
-  import { TELEMETRY_SCHEMA_VERSION } from "@sentinel/core";
+  import { TELEMETRY_SCHEMA_VERSION } from "@sentinele2e/core";
   import type {
     LocatorResolvedEvent,
     AssertionEvent,
@@ -2139,7 +2248,7 @@ This sub-step authors the two pure-TypeScript framework packages: `@sentinel/con
     ArtifactCapturedEvent,
     FlowFinishedEvent,
     TelemetryEvent,
-  } from "@sentinel/core";
+  } from "@sentinele2e/core";
 
   const base = {
     schemaVersion: TELEMETRY_SCHEMA_VERSION,
@@ -2189,7 +2298,13 @@ This sub-step authors the two pure-TypeScript framework packages: `@sentinel/con
 
   test("Assertion/Retry/Artifact/FlowFinished events are satisfiable and join the union", () => {
     const events: TelemetryEvent[] = [
-      { ...base, type: "assertion", state: "visible", matched: true, locatorRank: 0 } as AssertionEvent,
+      {
+        ...base,
+        type: "assertion",
+        state: "visible",
+        matched: true,
+        locatorRank: 0,
+      } as AssertionEvent,
       {
         ...base,
         type: "retry",
@@ -2225,7 +2340,11 @@ This sub-step authors the two pure-TypeScript framework packages: `@sentinel/con
 
   ```ts
   // packages/core/src/telemetry/signals.ts
-  import type { StrategyKind, ElementState, BranchProgress } from "@sentinel/contracts";
+  import type {
+    StrategyKind,
+    ElementState,
+    BranchProgress,
+  } from "@sentinele2e/contracts";
   import type { Artifact, SystemFailureKind } from "../errors";
   import type { TelemetryEnvelope } from "./event";
 
@@ -2234,7 +2353,11 @@ This sub-step authors the two pure-TypeScript framework packages: `@sentinel/con
     resolvedKind: StrategyKind;
     resolvedRank: number; // >0 => SELECTOR-DRIFT
     degraded: boolean; // resolvedRank > 0
-    candidates: readonly { kind: StrategyKind; outcome: "matched" | "missed" | "skipped"; rank: number }[];
+    candidates: readonly {
+      kind: StrategyKind;
+      outcome: "matched" | "missed" | "skipped";
+      rank: number;
+    }[];
     score: number;
     resolveDurationMs: number;
   }
@@ -2296,12 +2419,14 @@ This sub-step authors the two pure-TypeScript framework packages: `@sentinel/con
   git add packages/core/src/telemetry/signals.ts packages/core/tests/telemetry-signals.test.ts
   git commit -m "feat(core): classifier signal event types"
   ```
+
   Run: `git commit -m "feat(core): classifier signal event types"`
   Expected: commit succeeds; one commit created.
 
 ### S2 — Task 10: Core — timers (durationMs from hrtime.bigint)
 
 **Files:**
+
 - Create: `packages/core/src/telemetry/timers.ts`
 - Test: `packages/core/tests/timers.test.ts`
 
@@ -2310,7 +2435,7 @@ This sub-step authors the two pure-TypeScript framework packages: `@sentinel/con
   ```ts
   // packages/core/tests/timers.test.ts
   import { test, expect } from "@playwright/test";
-  import { startTimer, durationMsFromNs, type Timer } from "@sentinel/core";
+  import { startTimer, durationMsFromNs, type Timer } from "@sentinele2e/core";
 
   test("durationMsFromNs converts a ns delta to fractional ms", () => {
     expect(durationMsFromNs(1_000_000n)).toBe(1);
@@ -2350,7 +2475,8 @@ This sub-step authors the two pure-TypeScript framework packages: `@sentinel/con
   const defaultClock: HrClock = () => process.hrtime.bigint();
 
   /** ns delta -> fractional milliseconds (duration source of truth is the monotonic clock). */
-  export const durationMsFromNs = (deltaNs: bigint): number => Number(deltaNs) / 1_000_000;
+  export const durationMsFromNs = (deltaNs: bigint): number =>
+    Number(deltaNs) / 1_000_000;
 
   export interface Timer {
     readonly startMonotonicNs: bigint;
@@ -2388,12 +2514,14 @@ This sub-step authors the two pure-TypeScript framework packages: `@sentinel/con
   git add packages/core/src/telemetry/timers.ts packages/core/tests/timers.test.ts
   git commit -m "feat(core): monotonic timers deriving durationMs from hrtime"
   ```
+
   Run: `git commit -m "feat(core): monotonic timers deriving durationMs from hrtime"`
   Expected: commit succeeds; one commit created.
 
 ### S2 — Task 11: Core — SpanContext + StampingSink + InMemorySink + NoopSink
 
 **Files:**
+
 - Create: `packages/core/src/telemetry/sink.ts`
 - Test: `packages/core/tests/sink.test.ts`
 
@@ -2410,8 +2538,8 @@ This sub-step authors the two pure-TypeScript framework packages: `@sentinel/con
     InMemorySink,
     NoopSink,
     TELEMETRY_SCHEMA_VERSION,
-  } from "@sentinel/core";
-  import type { TelemetryEnvelope } from "@sentinel/core";
+  } from "@sentinele2e/core";
+  import type { TelemetryEnvelope } from "@sentinele2e/core";
 
   const evt = (name: string): TelemetryEnvelope => ({
     schemaVersion: TELEMETRY_SCHEMA_VERSION,
@@ -2549,7 +2677,9 @@ This sub-step authors the two pure-TypeScript framework packages: `@sentinel/con
         ...event,
         traceId: this.span.traceId,
         spanId: this.span.spanId,
-        ...(this.span.parentSpanId !== undefined ? { parentSpanId: this.span.parentSpanId } : {}),
+        ...(this.span.parentSpanId !== undefined
+          ? { parentSpanId: this.span.parentSpanId }
+          : {}),
         sequence: this.span.nextSequence(),
       });
     }
@@ -2578,12 +2708,14 @@ This sub-step authors the two pure-TypeScript framework packages: `@sentinel/con
   git add packages/core/src/telemetry/sink.ts packages/core/tests/sink.test.ts
   git commit -m "feat(core): span context, stamping, in-memory and noop sinks"
   ```
+
   Run: `git commit -m "feat(core): span context, stamping, in-memory and noop sinks"`
   Expected: commit succeeds; one commit created.
 
 ### S2 — Task 12: Core — CompositeSink fan-out (SEAM 3)
 
 **Files:**
+
 - Modify: `packages/core/src/telemetry/sink.ts`
 - Test: `packages/core/tests/composite-sink.test.ts`
 
@@ -2596,8 +2728,8 @@ This sub-step authors the two pure-TypeScript framework packages: `@sentinel/con
     CompositeSink,
     InMemorySink,
     TELEMETRY_SCHEMA_VERSION,
-  } from "@sentinel/core";
-  import type { TelemetryEnvelope } from "@sentinel/core";
+  } from "@sentinele2e/core";
+  import type { TelemetryEnvelope } from "@sentinele2e/core";
 
   const evt = (name: string): TelemetryEnvelope => ({
     schemaVersion: TELEMETRY_SCHEMA_VERSION,
@@ -2665,12 +2797,14 @@ This sub-step authors the two pure-TypeScript framework packages: `@sentinel/con
   git add packages/core/src/telemetry/sink.ts packages/core/tests/composite-sink.test.ts
   git commit -m "feat(core): composite sink fan-out"
   ```
+
   Run: `git commit -m "feat(core): composite sink fan-out"`
   Expected: commit succeeds; one commit created.
 
 ### S2 — Task 13: Core — JsonlSink with bigint-stringifying replacer
 
 **Files:**
+
 - Create: `packages/core/src/telemetry/jsonl-sink.ts`
 - Test: `packages/core/tests/jsonl-sink.test.ts`
 
@@ -2685,10 +2819,14 @@ This sub-step authors the two pure-TypeScript framework packages: `@sentinel/con
   import { join } from "node:path";
   import { tmpdir } from "node:os";
   import { randomUUID } from "node:crypto";
-  import { JsonlSink, TELEMETRY_SCHEMA_VERSION } from "@sentinel/core";
-  import type { TelemetryEnvelope } from "@sentinel/core";
+  import { JsonlSink, TELEMETRY_SCHEMA_VERSION } from "@sentinele2e/core";
+  import type { TelemetryEnvelope } from "@sentinele2e/core";
 
-  const evt = (name: string, start: bigint, end: bigint): TelemetryEnvelope => ({
+  const evt = (
+    name: string,
+    start: bigint,
+    end: bigint,
+  ): TelemetryEnvelope => ({
     schemaVersion: TELEMETRY_SCHEMA_VERSION,
     eventId: randomUUID(),
     type: "component.action",
@@ -2696,7 +2834,12 @@ This sub-step authors the two pure-TypeScript framework packages: `@sentinel/con
     spanId: "s",
     sequence: 0,
     name,
-    timing: { startWallClockMs: 1, startMonotonicNs: start, endMonotonicNs: end, durationMs: 1 },
+    timing: {
+      startWallClockMs: 1,
+      startMonotonicNs: start,
+      endMonotonicNs: end,
+      durationMs: 1,
+    },
   });
 
   test("JsonlSink writes one JSON line per event and round-trips bigint timing", () => {
@@ -2715,9 +2858,10 @@ This sub-step authors the two pure-TypeScript framework packages: `@sentinel/con
       const t0 = parsed[0]?.timing as Record<string, unknown>;
       expect(t0.startMonotonicNs).toBe("5000000");
       expect(t0.endMonotonicNs).toBe("6000000");
-      expect(BigInt(t0.endMonotonicNs as string) - BigInt(t0.startMonotonicNs as string)).toBe(
-        1_000_000n,
-      );
+      expect(
+        BigInt(t0.endMonotonicNs as string) -
+          BigInt(t0.startMonotonicNs as string),
+      ).toBe(1_000_000n);
     } finally {
       if (existsSync(filePath)) rmSync(filePath);
     }
@@ -2772,7 +2916,10 @@ This sub-step authors the two pure-TypeScript framework packages: `@sentinel/con
           mkdirSync(dirname(this.filePath), { recursive: true });
           this.dirEnsured = true;
         }
-        appendFileSync(this.filePath, `${JSON.stringify(event, bigintReplacer)}\n`);
+        appendFileSync(
+          this.filePath,
+          `${JSON.stringify(event, bigintReplacer)}\n`,
+        );
       } catch (err) {
         // Telemetry must never fail a run: best-effort warn, never throw.
         console.warn(`JsonlSink write failed for ${this.filePath}:`, err);
@@ -2797,17 +2944,19 @@ This sub-step authors the two pure-TypeScript framework packages: `@sentinel/con
   git add packages/core/src/telemetry/jsonl-sink.ts packages/core/tests/jsonl-sink.test.ts
   git commit -m "feat(core): jsonl sink with bigint-safe serialization"
   ```
+
   Run: `git commit -m "feat(core): jsonl sink with bigint-safe serialization"`
   Expected: commit succeeds; one commit created.
 
 ### S2 — Task 14: Core — telemetry barrel + package barrel wiring
 
 **Files:**
+
 - Create: `packages/core/src/telemetry/index.ts`
 - Modify: `packages/core/src/index.ts`
 - Test: `packages/core/tests/telemetry-barrel.test.ts`
 
-- [ ] **Step 1: Write the failing test.** Imports every telemetry export through the top-level `@sentinel/core` barrel to lock the public surface.
+- [ ] **Step 1: Write the failing test.** Imports every telemetry export through the top-level `@sentinele2e/core` barrel to lock the public surface.
 
   ```ts
   // packages/core/tests/telemetry-barrel.test.ts
@@ -2822,9 +2971,9 @@ This sub-step authors the two pure-TypeScript framework packages: `@sentinel/con
     JsonlSink,
     startTimer,
     durationMsFromNs,
-  } from "@sentinel/core";
+  } from "@sentinele2e/core";
 
-  test("telemetry public surface is re-exported from @sentinel/core", () => {
+  test("telemetry public surface is re-exported from @sentinele2e/core", () => {
     expect(TELEMETRY_SCHEMA_VERSION).toBe("1.0.0");
     expect(typeof SpanContext).toBe("function");
     expect(typeof StampingSink).toBe("function");
@@ -2850,7 +2999,12 @@ This sub-step authors the two pure-TypeScript framework packages: `@sentinel/con
   ```ts
   // packages/core/src/telemetry/index.ts
   export { TELEMETRY_SCHEMA_VERSION } from "./event";
-  export type { Timing, SpanStatus, TelemetryEventType, TelemetryEnvelope } from "./event";
+  export type {
+    Timing,
+    SpanStatus,
+    TelemetryEventType,
+    TelemetryEnvelope,
+  } from "./event";
   export type {
     LocatorResolvedEvent,
     AssertionEvent,
@@ -2879,7 +3033,13 @@ This sub-step authors the two pure-TypeScript framework packages: `@sentinel/con
 
   ```ts
   export type { TelemetrySink } from "./sink";
-  export { SpanContext, StampingSink, InMemorySink, NoopSink, CompositeSink } from "./sink";
+  export {
+    SpanContext,
+    StampingSink,
+    InMemorySink,
+    NoopSink,
+    CompositeSink,
+  } from "./sink";
   ```
 
 - [ ] **Step 3: Extend the package barrel.**
@@ -2897,6 +3057,7 @@ This sub-step authors the two pure-TypeScript framework packages: `@sentinel/con
   npm run test:unit -- packages/core/tests/telemetry-barrel.test.ts
   npm run typecheck
   ```
+
   Run: `npm run test:unit -- packages/core/tests/telemetry-barrel.test.ts`
   Expected: `2 passed`.
   Run: `npm run typecheck`
@@ -2908,12 +3069,14 @@ This sub-step authors the two pure-TypeScript framework packages: `@sentinel/con
   git add packages/core/src/telemetry/index.ts packages/core/src/index.ts packages/core/tests/telemetry-barrel.test.ts
   git commit -m "feat(core): telemetry barrel and package re-exports"
   ```
+
   Run: `git commit -m "feat(core): telemetry barrel and package re-exports"`
   Expected: commit succeeds; one commit created.
 
 ### S2 — Task 15: Core — locator StrategyRegistry with §7 rank defaults
 
 **Files:**
+
 - Create: `packages/core/src/locator/strategy-registry.ts`
 - Test: `packages/core/tests/strategy-registry.test.ts`
 
@@ -2924,7 +3087,7 @@ This sub-step authors the two pure-TypeScript framework packages: `@sentinel/con
   ```ts
   // packages/core/tests/strategy-registry.test.ts
   import { test, expect } from "@playwright/test";
-  import { StrategyRegistry } from "@sentinel/core";
+  import { StrategyRegistry } from "@sentinele2e/core";
 
   test("default ranks follow the §7 durability table", () => {
     const reg = new StrategyRegistry();
@@ -2962,7 +3125,7 @@ This sub-step authors the two pure-TypeScript framework packages: `@sentinel/con
 
   ```ts
   // packages/core/src/locator/strategy-registry.ts
-  import type { StrategyKind } from "@sentinel/contracts";
+  import type { StrategyKind } from "@sentinele2e/contracts";
 
   export interface StrategyMeta {
     readonly rank: number;
@@ -3012,12 +3175,14 @@ This sub-step authors the two pure-TypeScript framework packages: `@sentinel/con
   git add packages/core/src/locator/strategy-registry.ts packages/core/tests/strategy-registry.test.ts
   git commit -m "feat(core): durability-ranked strategy registry"
   ```
+
   Run: `git commit -m "feat(core): durability-ranked strategy registry"`
   Expected: commit succeeds; one commit created.
 
 ### S2 — Task 16: Core — locator engine interfaces + locator/core barrels
 
 **Files:**
+
 - Create: `packages/core/src/locator/engine.ts`
 - Create: `packages/core/src/locator/index.ts`
 - Modify: `packages/core/src/index.ts`
@@ -3028,9 +3193,9 @@ This sub-step authors the two pure-TypeScript framework packages: `@sentinel/con
   ```ts
   // packages/core/tests/engine.test.ts
   import { test, expect } from "@playwright/test";
-  import { StrategyRegistry } from "@sentinel/core";
-  import type { LocatorResolution, LocatorResolver } from "@sentinel/core";
-  import type { ElementHandle, Locator } from "@sentinel/contracts";
+  import { StrategyRegistry } from "@sentinele2e/core";
+  import type { LocatorResolution, LocatorResolver } from "@sentinele2e/core";
+  import type { ElementHandle, Locator } from "@sentinele2e/contracts";
 
   const loc: Locator = {
     logicalName: "auth.login.submit",
@@ -3081,7 +3246,11 @@ This sub-step authors the two pure-TypeScript framework packages: `@sentinel/con
 
   ```ts
   // packages/core/src/locator/engine.ts
-  import type { ElementHandle, Locator, StrategyKind } from "@sentinel/contracts";
+  import type {
+    ElementHandle,
+    Locator,
+    StrategyKind,
+  } from "@sentinele2e/contracts";
 
   export interface LocatorResolution {
     handle: ElementHandle;
@@ -3119,6 +3288,7 @@ This sub-step authors the two pure-TypeScript framework packages: `@sentinel/con
   npm run test:unit -- packages/core/tests/engine.test.ts
   npm run typecheck
   ```
+
   Run: `npm run test:unit -- packages/core/tests/engine.test.ts`
   Expected: `2 passed`.
   Run: `npm run typecheck`
@@ -3130,12 +3300,14 @@ This sub-step authors the two pure-TypeScript framework packages: `@sentinel/con
   git add packages/core/src/locator/engine.ts packages/core/src/locator/index.ts packages/core/src/index.ts packages/core/tests/engine.test.ts
   git commit -m "feat(core): locator engine interfaces and barrel"
   ```
+
   Run: `git commit -m "feat(core): locator engine interfaces and barrel"`
   Expected: commit succeeds; one commit created.
 
 ### S2 — Task 17: S2 acceptance gate — full typecheck + unit suite + Playwright-import audit
 
 **Files:**
+
 - Test: (no new file — runs the full S2 acceptance subset)
 
 - [ ] **Step 1: Run the complete unit suite (all S2 packages).**
@@ -3143,6 +3315,7 @@ This sub-step authors the two pure-TypeScript framework packages: `@sentinel/con
   ```bash
   npm run test:unit
   ```
+
   Run: `npm run test:unit`
   Expected: all `packages/**/tests/**` specs pass (contracts: capability-locator, action, assertion, session-driver; core: result, system-failure-error, error-kinds, telemetry-event, telemetry-signals, timers, sink, composite-sink, jsonl-sink, telemetry-barrel, strategy-registry, engine) — final line reports the total count and `passed`, `0 failed`.
 
@@ -3151,6 +3324,7 @@ This sub-step authors the two pure-TypeScript framework packages: `@sentinel/con
   ```bash
   npm run typecheck
   ```
+
   Run: `npm run typecheck`
   Expected: exits 0, no output (`tsc -b` clean under `strict` + `noUncheckedIndexedAccess`, §10.2).
 
@@ -3159,6 +3333,7 @@ This sub-step authors the two pure-TypeScript framework packages: `@sentinel/con
   ```bash
   ! grep -rn "@playwright/test" packages/contracts/src packages/core/src
   ```
+
   Run: `! grep -rn "@playwright/test" packages/contracts/src packages/core/src`
   Expected: exits 0 (no matches printed; the `!` inverts grep's "not found" exit so a clean tree passes). If any line prints, the audit fails.
 
@@ -3167,6 +3342,7 @@ This sub-step authors the two pure-TypeScript framework packages: `@sentinel/con
   ```bash
   npm run lint
   ```
+
   Run: `npm run lint`
   Expected: exits 0, no warnings/errors (`--max-warnings=0`); `no-restricted-imports` reports nothing for `packages/contracts/src` and `packages/core/src`.
 
@@ -3175,15 +3351,17 @@ This sub-step authors the two pure-TypeScript framework packages: `@sentinel/con
   ```bash
   git commit --allow-empty -m "test(core): S2 contracts + core types acceptance gate green"
   ```
+
   Run: `git commit --allow-empty -m "test(core): S2 contracts + core types acceptance gate green"`
   Expected: commit succeeds; one commit created.
 
 ---
 
-**S2 author notes.** 17 bite-sized TDD tasks cover `@sentinel/contracts` (capability/locator/element/action/assertion/session/driver + barrel) and `@sentinel/core` (result factories, the 6-subclass error taxonomy, telemetry envelope/signals/timers/SpanContext/InMemorySink/NoopSink/CompositeSink/JsonlSink, and the locator StrategyRegistry + engine interfaces), each with a failing-test-first loop, complete copy-pasteable code (exact spec type names/signatures/paths), exact `Run:`/`Expected:` lines, and a Conventional-Commit step, plus a final acceptance gate (typecheck + full unit suite + Playwright-import audit + lint).
+**S2 author notes.** 17 bite-sized TDD tasks cover `@sentinele2e/contracts` (capability/locator/element/action/assertion/session/driver + barrel) and `@sentinele2e/core` (result factories, the 6-subclass error taxonomy, telemetry envelope/signals/timers/SpanContext/InMemorySink/NoopSink/CompositeSink/JsonlSink, and the locator StrategyRegistry + engine interfaces), each with a failing-test-first loop, complete copy-pasteable code (exact spec type names/signatures/paths), exact `Run:`/`Expected:` lines, and a Conventional-Commit step, plus a final acceptance gate (typecheck + full unit suite + Playwright-import audit + lint).
 
 Three spec-faithful interpretation decisions I flagged inline (not deviations from any named type):
-- `Session.telemetry` is typed via a minimal structural `TelemetrySinkLike` declared in `contracts/session.ts` to avoid a `contracts → core` dependency cycle (core's `TelemetrySink` stays structurally assignable). The spec types `telemetry: TelemetrySink` but `TelemetrySink` lives in `@sentinel/core`, which depends on contracts, so a literal import would create a cycle.
+
+- `Session.telemetry` is typed via a minimal structural `TelemetrySinkLike` declared in `contracts/session.ts` to avoid a `contracts → core` dependency cycle (core's `TelemetrySink` stays structurally assignable). The spec types `telemetry: TelemetrySink` but `TelemetrySink` lives in `@sentinele2e/core`, which depends on contracts, so a literal import would create a cycle.
 - Added a `TelemetryEvent` union (LocatorResolved/Assertion/Retry/BusinessFailure/SystemFailure/ArtifactCaptured/FlowFinished | TelemetryEnvelope) as the `TelemetrySink.emit` parameter type — the spec's `emit(event: TelemetryEvent)` references this union without giving its definition.
 - `StrategyRegistry.rankOf` returns rank 6 (the css/xpath migration bottom rung) for unknown open `StrategyKind`s, consistent with §7's "every locator must include a universally-supported candidate" guarantee; the spec table fixes ranks but does not specify the default for unregistered kinds.
 
@@ -3191,13 +3369,14 @@ These were authored against the assumption that S1 has already created the works
 
 ---
 
-> Sub-step S3 — `@sentinel/driver-playwright`
+> Sub-step S3 — `@sentinele2e/driver-playwright`
 
 Implements the Playwright adapter — the only package allowed to import `@playwright/test` — over the contracts from S2: strategy-compiler, resolver (emitting `locator.resolved` before any handle is usable), element/action (auto-wait actionability), assertion (`waitFor` + driver-owned `waitForFirstOf` race with loser-cancellation), session, and driver (the single guarded `existingPage` duck-type). Browser-backed tests use `page.setContent()` and an injected `InMemorySink` to prove the four §7 obligations, with §10.5 (race throws `TimeoutError` carrying `branchProgress[]`, never resolves-on-timeout) as the load-bearing fix.
 
-### S3 — Task 1: Scaffold `@sentinel/driver-playwright` package (the only Playwright importer)
+### S3 — Task 1: Scaffold `@sentinele2e/driver-playwright` package (the only Playwright importer)
 
 **Files:**
+
 - Create: `packages/driver-playwright/package.json`
 - Create: `packages/driver-playwright/tsconfig.json`
 - Create: `packages/driver-playwright/src/index.ts`
@@ -3212,7 +3391,7 @@ import * as fs from "node:fs";
 import * as path from "node:path";
 
 test("barrel exposes PlaywrightDriver", async () => {
-  const mod = await import("@sentinel/driver-playwright");
+  const mod = await import("@sentinele2e/driver-playwright");
   expect(typeof (mod as Record<string, unknown>).PlaywrightDriver).toBe(
     "function",
   );
@@ -3228,25 +3407,27 @@ test("package declares @playwright/test as a dependency", () => {
 ```
 
 Run:
+
 ```bash
 npx playwright test --config playwright.unit.config.ts packages/driver-playwright/tests/package-wiring.test.ts
 ```
-Expected: FAILS — `Cannot find module '@sentinel/driver-playwright'` (or `PlaywrightDriver` is not a function).
+
+Expected: FAILS — `Cannot find module '@sentinele2e/driver-playwright'` (or `PlaywrightDriver` is not a function).
 
 - [ ] **Step 2: Create the package manifest.** `@playwright/test` is a real dependency here (the only package allowed); depends on contracts + core via `paths`.
 
 ```json
 // packages/driver-playwright/package.json
 {
-  "name": "@sentinel/driver-playwright",
+  "name": "@sentinele2e/driver-playwright",
   "version": "1.0.0",
   "private": true,
   "type": "commonjs",
   "main": "src/index.ts",
   "dependencies": {
     "@playwright/test": "^1.58.2",
-    "@sentinel/contracts": "1.0.0",
-    "@sentinel/core": "1.0.0"
+    "@sentinele2e/contracts": "1.0.0",
+    "@sentinele2e/core": "1.0.0"
   }
 }
 ```
@@ -3263,10 +3444,7 @@ Expected: FAILS — `Cannot find module '@sentinel/driver-playwright'` (or `Play
     "outDir": "dist"
   },
   "include": ["src/**/*.ts"],
-  "references": [
-    { "path": "../contracts" },
-    { "path": "../core" }
-  ]
+  "references": [{ "path": "../contracts" }, { "path": "../core" }]
 }
 ```
 
@@ -3285,17 +3463,20 @@ export class PlaywrightDriver {}
 ```
 
 Run:
+
 ```bash
 npx playwright test --config playwright.unit.config.ts packages/driver-playwright/tests/package-wiring.test.ts
 ```
+
 Expected: PASS — `2 passed`.
 
 - [ ] **Step 6: Commit.**
 
 ```bash
 git add packages/driver-playwright/package.json packages/driver-playwright/tsconfig.json packages/driver-playwright/src/index.ts packages/driver-playwright/src/driver.ts packages/driver-playwright/tests/package-wiring.test.ts
-git commit -m "feat(web): scaffold @sentinel/driver-playwright package"
+git commit -m "feat(web): scaffold @sentinele2e/driver-playwright package"
 ```
+
 Expected: commit succeeds; commitlint passes.
 
 ---
@@ -3303,6 +3484,7 @@ Expected: commit succeeds; commitlint passes.
 ### S3 — Task 2: Strategy compiler — `LocatorStrategy` → Playwright `Locator`
 
 **Files:**
+
 - Create: `packages/driver-playwright/src/strategy-compiler.ts`
 - Test: `packages/driver-playwright/tests/strategy-compiler.test.ts`
 
@@ -3311,7 +3493,7 @@ Expected: commit succeeds; commitlint passes.
 ```ts
 // packages/driver-playwright/tests/strategy-compiler.test.ts
 import { test, expect } from "@playwright/test";
-import type { LocatorStrategy } from "@sentinel/contracts";
+import type { LocatorStrategy } from "@sentinele2e/contracts";
 import { compileStrategy } from "../src/strategy-compiler";
 
 const HTML = `
@@ -3356,16 +3538,18 @@ test("compiles css and xpath via page.locator", async ({ page }) => {
 
 test("throws on a kind it cannot compile", async ({ page }) => {
   await page.setContent(HTML);
-  expect(() =>
-    compileStrategy(page, { kind: "image", value: "x" }),
-  ).toThrow(/unsupported strategy kind/i);
+  expect(() => compileStrategy(page, { kind: "image", value: "x" })).toThrow(
+    /unsupported strategy kind/i,
+  );
 });
 ```
 
 Run:
+
 ```bash
 npx playwright test --config playwright.unit.config.ts packages/driver-playwright/tests/strategy-compiler.test.ts
 ```
+
 Expected: FAILS — `Cannot find module '../src/strategy-compiler'`.
 
 - [ ] **Step 2: Implement the compiler.** Maps each kind to the corresponding Playwright getter; css/xpath go through `page.locator`; unknown kinds throw (the resolver SKIPS unsupported kinds before reaching here, so this throw is a defensive guard).
@@ -3373,7 +3557,7 @@ Expected: FAILS — `Cannot find module '../src/strategy-compiler'`.
 ```ts
 // packages/driver-playwright/src/strategy-compiler.ts
 import type { Locator as PwLocator, Page } from "@playwright/test";
-import type { LocatorStrategy } from "@sentinel/contracts";
+import type { LocatorStrategy } from "@sentinele2e/contracts";
 
 type Aria =
   | "button"
@@ -3390,9 +3574,10 @@ type Aria =
   | "dialog"
   | "alert";
 
-function readName(
-  options: LocatorStrategy["options"],
-): { name?: string; exact?: boolean } {
+function readName(options: LocatorStrategy["options"]): {
+  name?: string;
+  exact?: boolean;
+} {
   const name = options?.["name"];
   const exact = options?.["exact"];
   return {
@@ -3432,9 +3617,11 @@ export function compileStrategy(
 ```
 
 Run:
+
 ```bash
 npx playwright test --config playwright.unit.config.ts packages/driver-playwright/tests/strategy-compiler.test.ts
 ```
+
 Expected: PASS — `4 passed`.
 
 - [ ] **Step 3: Commit.**
@@ -3443,6 +3630,7 @@ Expected: PASS — `4 passed`.
 git add packages/driver-playwright/src/strategy-compiler.ts packages/driver-playwright/tests/strategy-compiler.test.ts
 git commit -m "feat(web): compile LocatorStrategy to Playwright Locator"
 ```
+
 Expected: commit succeeds.
 
 ---
@@ -3450,6 +3638,7 @@ Expected: commit succeeds.
 ### S3 — Task 3: Resolver — emits `locator.resolved` BEFORE returning, skips unsupported, throws on miss/ambiguous
 
 **Files:**
+
 - Create: `packages/driver-playwright/src/element.ts`
 - Create: `packages/driver-playwright/src/resolver.ts`
 - Test: `packages/driver-playwright/tests/resolver.test.ts`
@@ -3459,12 +3648,12 @@ Expected: commit succeeds.
 ```ts
 // packages/driver-playwright/tests/resolver.test.ts
 import { test, expect } from "@playwright/test";
-import type { Locator } from "@sentinel/contracts";
-import { InMemorySink } from "@sentinel/core";
+import type { Locator } from "@sentinele2e/contracts";
+import { InMemorySink } from "@sentinele2e/core";
 import {
   SelectorNotFoundError,
   SelectorAmbiguousError,
-} from "@sentinel/core";
+} from "@sentinele2e/core";
 import { PlaywrightResolver } from "../src/resolver";
 
 const STRATEGIES = new Set(["role", "label", "text", "testid", "css", "xpath"]);
@@ -3474,7 +3663,12 @@ const HTML = `
   <span class="dup">a</span><span class="dup">b</span>
 `;
 
-function makeResolver(page: Parameters<typeof page.setContent>[0] extends never ? never : import("@playwright/test").Page, sink: InMemorySink) {
+function makeResolver(
+  page: Parameters<typeof page.setContent>[0] extends never
+    ? never
+    : import("@playwright/test").Page,
+  sink: InMemorySink,
+) {
   return new PlaywrightResolver(page, STRATEGIES, sink, {
     correlationId: "corr-1",
     flowName: "test.flow",
@@ -3534,10 +3728,14 @@ test("skips kinds the driver does not advertise", async ({ page }) => {
   } as Locator;
 
   await resolver.resolve(locator);
-  const ev = sink.events.find((e) => e.type === "locator.resolved") as unknown as {
+  const ev = sink.events.find(
+    (e) => e.type === "locator.resolved",
+  ) as unknown as {
     candidates: { kind: string; outcome: string }[];
   };
-  expect(ev.candidates.find((c) => c.kind === "image")?.outcome).toBe("skipped");
+  expect(ev.candidates.find((c) => c.kind === "image")?.outcome).toBe(
+    "skipped",
+  );
 });
 
 test("throws SelectorNotFoundError with attempted[] when all supported miss", async ({
@@ -3581,9 +3779,11 @@ test("throws SelectorAmbiguousError on >1 match", async ({ page }) => {
 ```
 
 Run:
+
 ```bash
 npx playwright test --config playwright.unit.config.ts packages/driver-playwright/tests/resolver.test.ts
 ```
+
 Expected: FAILS — `Cannot find module '../src/resolver'`.
 
 - [ ] **Step 2: Implement `PlaywrightElementHandle` (re-resolves per call).** Each method recompiles the winning candidate against the page so there are no stale handles (spec §3.3).
@@ -3591,7 +3791,11 @@ Expected: FAILS — `Cannot find module '../src/resolver'`.
 ```ts
 // packages/driver-playwright/src/element.ts
 import type { Locator as PwLocator, Page } from "@playwright/test";
-import type { ElementHandle, Locator, LocatorStrategy } from "@sentinel/contracts";
+import type {
+  ElementHandle,
+  Locator,
+  LocatorStrategy,
+} from "@sentinele2e/contracts";
 import { compileStrategy } from "./strategy-compiler";
 
 /** Re-resolves the winning candidate per call — no cached live handle (spec §3.3). */
@@ -3637,15 +3841,15 @@ import type {
   Locator,
   LocatorStrategy,
   StrategyKind,
-} from "@sentinel/contracts";
-import type { LocatorResolution, LocatorResolver } from "@sentinel/core";
+} from "@sentinele2e/contracts";
+import type { LocatorResolution, LocatorResolver } from "@sentinele2e/core";
 import {
   SelectorAmbiguousError,
   SelectorNotFoundError,
   StrategyRegistry,
   defaultStrategyRegistry,
-} from "@sentinel/core";
-import type { TelemetrySink } from "@sentinel/core";
+} from "@sentinele2e/core";
+import type { TelemetrySink } from "@sentinele2e/core";
 import { PlaywrightElementHandle } from "./element";
 import { compileStrategy } from "./strategy-compiler";
 
@@ -3790,12 +3994,14 @@ function cryptoRandom(): string {
 }
 ```
 
-> Note: this task assumes S2 exported `defaultStrategyRegistry` (a `StrategyRegistry` pre-seeded with the §7 rank table) and `StrategyRegistry.rankOf` from `@sentinel/core`. If S2 named the pre-seeded instance differently, construct one inline here: `const reg = new StrategyRegistry(); reg.register("role",{rank:0}); … reg.register("css",{rank:6}); reg.register("xpath",{rank:6});` — the rank table is spec §7.
+> Note: this task assumes S2 exported `defaultStrategyRegistry` (a `StrategyRegistry` pre-seeded with the §7 rank table) and `StrategyRegistry.rankOf` from `@sentinele2e/core`. If S2 named the pre-seeded instance differently, construct one inline here: `const reg = new StrategyRegistry(); reg.register("role",{rank:0}); … reg.register("css",{rank:6}); reg.register("xpath",{rank:6});` — the rank table is spec §7.
 
 Run:
+
 ```bash
 npx playwright test --config playwright.unit.config.ts packages/driver-playwright/tests/resolver.test.ts
 ```
+
 Expected: PASS — `4 passed`.
 
 - [ ] **Step 4: Commit.**
@@ -3804,6 +4010,7 @@ Expected: PASS — `4 passed`.
 git add packages/driver-playwright/src/element.ts packages/driver-playwright/src/resolver.ts packages/driver-playwright/tests/resolver.test.ts
 git commit -m "feat(web): resolver emits locator.resolved before returning handle"
 ```
+
 Expected: commit succeeds.
 
 ---
@@ -3811,6 +4018,7 @@ Expected: commit succeeds.
 ### S3 — Task 4: Action layer — tap/typeText/clear/read via resolver + Playwright auto-wait
 
 **Files:**
+
 - Create: `packages/driver-playwright/src/action.ts`
 - Test: `packages/driver-playwright/tests/action.test.ts`
 
@@ -3819,8 +4027,8 @@ Expected: commit succeeds.
 ```ts
 // packages/driver-playwright/tests/action.test.ts
 import { test, expect } from "@playwright/test";
-import type { Locator } from "@sentinel/contracts";
-import { InMemorySink } from "@sentinel/core";
+import type { Locator } from "@sentinele2e/contracts";
+import { InMemorySink } from "@sentinele2e/core";
 import { PlaywrightResolver } from "../src/resolver";
 import { PlaywrightAction } from "../src/action";
 
@@ -3877,13 +4085,10 @@ test("clear empties an input", async ({ page }) => {
 test("tap clicks the resolved element", async ({ page }) => {
   await page.setContent(HTML);
   const action = makeAction(page, new InMemorySink());
-  await page.evaluate(
-    () =>
-      document
-        .querySelector("button.go")
-        ?.addEventListener("click", () => {
-          document.querySelector("span.msg")!.textContent = "clicked";
-        }),
+  await page.evaluate(() =>
+    document.querySelector("button.go")?.addEventListener("click", () => {
+      document.querySelector("span.msg")!.textContent = "clicked";
+    }),
   );
   await action.tap(submit);
   await expect(page.locator("span.msg")).toHaveText("clicked");
@@ -3897,9 +4102,11 @@ test("read returns text content of a non-input element", async ({ page }) => {
 ```
 
 Run:
+
 ```bash
 npx playwright test --config playwright.unit.config.ts packages/driver-playwright/tests/action.test.ts
 ```
+
 Expected: FAILS — `Cannot find module '../src/action'`.
 
 - [ ] **Step 2: Implement `PlaywrightAction`.** Each verb resolves (emitting `locator.resolved`), then recompiles the winner and uses Playwright's auto-waiting `fill`/`click`/`inputValue`/`textContent`. `read` prefers `inputValue` for form fields, falling back to `textContent`.
@@ -3907,8 +4114,8 @@ Expected: FAILS — `Cannot find module '../src/action'`.
 ```ts
 // packages/driver-playwright/src/action.ts
 import type { Locator as PwLocator } from "@playwright/test";
-import type { Action, Locator } from "@sentinel/contracts";
-import type { LocatorResolver } from "@sentinel/core";
+import type { Action, Locator } from "@sentinele2e/contracts";
+import type { LocatorResolver } from "@sentinele2e/core";
 import type { PlaywrightElementHandle } from "./element";
 import { compileStrategy } from "./strategy-compiler";
 
@@ -3963,9 +4170,11 @@ export { compileStrategy };
 ```
 
 Run:
+
 ```bash
 npx playwright test --config playwright.unit.config.ts packages/driver-playwright/tests/action.test.ts
 ```
+
 Expected: PASS — `4 passed`.
 
 - [ ] **Step 4: Commit.**
@@ -3974,6 +4183,7 @@ Expected: PASS — `4 passed`.
 git add packages/driver-playwright/src/action.ts packages/driver-playwright/src/element.ts packages/driver-playwright/tests/action.test.ts
 git commit -m "feat(web): action verbs route through resolver with auto-wait"
 ```
+
 Expected: commit succeeds.
 
 ---
@@ -3981,6 +4191,7 @@ Expected: commit succeeds.
 ### S3 — Task 5: Assertion — `waitFor` throws `TimeoutError` (not a bare Error) on a missing element
 
 **Files:**
+
 - Create: `packages/driver-playwright/src/assertion.ts`
 - Test: `packages/driver-playwright/tests/assertion-waitfor.test.ts`
 
@@ -3989,8 +4200,8 @@ Expected: commit succeeds.
 ```ts
 // packages/driver-playwright/tests/assertion-waitfor.test.ts
 import { test, expect } from "@playwright/test";
-import type { Locator } from "@sentinel/contracts";
-import { InMemorySink, TimeoutError } from "@sentinel/core";
+import type { Locator } from "@sentinele2e/contracts";
+import { InMemorySink, TimeoutError } from "@sentinele2e/core";
 import { PlaywrightResolver } from "../src/resolver";
 import { PlaywrightAssertion } from "../src/assertion";
 
@@ -4050,9 +4261,11 @@ test("waitFor throws TimeoutError (not a bare Error) on a missing element", asyn
 ```
 
 Run:
+
 ```bash
 npx playwright test --config playwright.unit.config.ts packages/driver-playwright/tests/assertion-waitfor.test.ts
 ```
+
 Expected: FAILS — `Cannot find module '../src/assertion'`.
 
 - [ ] **Step 2: Implement `PlaywrightAssertion.waitFor`.** It resolves the locator (emitting `locator.resolved`), maps `ElementState` to Playwright `waitFor`/`expect`, emits `assertion`, and on timeout emits `system.failure` + throws `TimeoutError`. `waitForFirstOf` is stubbed here and implemented in Task 6.
@@ -4065,12 +4278,9 @@ import type {
   BranchProgress,
   ElementState,
   Locator,
-} from "@sentinel/contracts";
-import type { LocatorResolver, TelemetrySink } from "@sentinel/core";
-import {
-  SelectorNotFoundError,
-  TimeoutError,
-} from "@sentinel/core";
+} from "@sentinele2e/contracts";
+import type { LocatorResolver, TelemetrySink } from "@sentinele2e/core";
+import { SelectorNotFoundError, TimeoutError } from "@sentinele2e/core";
 import type { PlaywrightElementHandle } from "./element";
 
 interface AssertContext {
@@ -4124,7 +4334,11 @@ export class PlaywrightAssertion implements Assertion {
   // Stubbed here — fully implemented in Task 6.
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   async waitForFirstOf<L extends string>(
-    _conditions: ReadonlyArray<{ label: L; target: Locator; state: ElementState }>,
+    _conditions: ReadonlyArray<{
+      label: L;
+      target: Locator;
+      state: ElementState;
+    }>,
     _opts?: { timeoutMs?: number },
   ): Promise<L> {
     throw new Error("waitForFirstOf implemented in Task 6");
@@ -4224,9 +4438,11 @@ export class PlaywrightAssertion implements Assertion {
 ```
 
 Run:
+
 ```bash
 npx playwright test --config playwright.unit.config.ts packages/driver-playwright/tests/assertion-waitfor.test.ts
 ```
+
 Expected: PASS — `2 passed`.
 
 - [ ] **Step 3: Commit.**
@@ -4235,6 +4451,7 @@ Expected: PASS — `2 passed`.
 git add packages/driver-playwright/src/assertion.ts packages/driver-playwright/tests/assertion-waitfor.test.ts
 git commit -m "feat(web): waitFor throws TimeoutError on missing element"
 ```
+
 Expected: commit succeeds.
 
 ---
@@ -4242,6 +4459,7 @@ Expected: commit succeeds.
 ### S3 — Task 6: `waitForFirstOf` — driver-owned race, loser-cancellation, throws on no-winner (§10.5)
 
 **Files:**
+
 - Modify: `packages/driver-playwright/src/assertion.ts`
 - Test: `packages/driver-playwright/tests/assertion-firstof.test.ts`
 
@@ -4250,8 +4468,8 @@ Expected: commit succeeds.
 ```ts
 // packages/driver-playwright/tests/assertion-firstof.test.ts
 import { test, expect } from "@playwright/test";
-import type { Locator } from "@sentinel/contracts";
-import { InMemorySink, TimeoutError } from "@sentinel/core";
+import type { Locator } from "@sentinele2e/contracts";
+import { InMemorySink, TimeoutError } from "@sentinele2e/core";
 import { PlaywrightResolver } from "../src/resolver";
 import { PlaywrightAssertion } from "../src/assertion";
 
@@ -4331,9 +4549,11 @@ test("THROWS TimeoutError with branchProgress when NEITHER branch is reachable, 
 ```
 
 Run:
+
 ```bash
 npx playwright test --config playwright.unit.config.ts packages/driver-playwright/tests/assertion-firstof.test.ts
 ```
+
 Expected: FAILS — the stub throws `Error: waitForFirstOf implemented in Task 6`, so both tests fail.
 
 - [ ] **Step 2: Implement `waitForFirstOf`.** Replace the stub. Each branch is a self-contained promise that NEVER rejects (it resolves to a discriminated `{ won }` outcome carrying `BranchProgress`), so `Promise.all` waits for all branches and there are zero unhandled rejections — the driver owns concurrency. The FIRST branch to report `won:true` wins; an `AbortController` cancels the losers (Playwright `waitFor` is abortable via a polling guard). On no winner it throws `TimeoutError` with every branch's `BranchProgress`.
@@ -4447,9 +4667,11 @@ function closest(
 ```
 
 Run:
+
 ```bash
 npx playwright test --config playwright.unit.config.ts packages/driver-playwright/tests/assertion-firstof.test.ts
 ```
+
 Expected: PASS — `2 passed`.
 
 - [ ] **Step 4: Commit.**
@@ -4458,6 +4680,7 @@ Expected: PASS — `2 passed`.
 git add packages/driver-playwright/src/assertion.ts packages/driver-playwright/tests/assertion-firstof.test.ts
 git commit -m "feat(web): waitForFirstOf races branches and throws with branchProgress"
 ```
+
 Expected: commit succeeds.
 
 ---
@@ -4465,6 +4688,7 @@ Expected: commit succeeds.
 ### S3 — Task 7: `PlaywrightSession` — id, capabilities, locate/action/assert, gated nav, screenshot, end
 
 **Files:**
+
 - Create: `packages/driver-playwright/src/session.ts`
 - Test: `packages/driver-playwright/tests/session.test.ts`
 
@@ -4473,8 +4697,8 @@ Expected: commit succeeds.
 ```ts
 // packages/driver-playwright/tests/session.test.ts
 import { test, expect } from "@playwright/test";
-import type { Locator } from "@sentinel/contracts";
-import { InMemorySink, CapabilityUnsupportedError } from "@sentinel/core";
+import type { Locator } from "@sentinele2e/contracts";
+import { InMemorySink, CapabilityUnsupportedError } from "@sentinele2e/core";
 import { PlaywrightSession } from "../src/session";
 
 const ready: Locator = {
@@ -4540,9 +4764,11 @@ test("screenshot returns a Buffer", async ({ page }) => {
 ```
 
 Run:
+
 ```bash
 npx playwright test --config playwright.unit.config.ts packages/driver-playwright/tests/session.test.ts
 ```
+
 Expected: FAILS — `Cannot find module '../src/session'`.
 
 - [ ] **Step 2: Implement `PlaywrightSession`.** Mints `id` via `crypto.randomUUID()`, wires the resolver/action/assertion with a shared context, implements `CapabilityProbe` (`supports`/`require`), and gates nav/screenshot behind the declared capability set.
@@ -4558,9 +4784,13 @@ import type {
   Locator,
   Session,
   StrategyKind,
-} from "@sentinel/contracts";
-import { CapabilityUnsupportedError, SpanContext, StampingSink } from "@sentinel/core";
-import type { TelemetrySink } from "@sentinel/core";
+} from "@sentinele2e/contracts";
+import {
+  CapabilityUnsupportedError,
+  SpanContext,
+  StampingSink,
+} from "@sentinele2e/core";
+import type { TelemetrySink } from "@sentinele2e/core";
 import { PlaywrightResolver } from "./resolver";
 import { PlaywrightAction } from "./action";
 import { PlaywrightAssertion } from "./assertion";
@@ -4677,9 +4907,11 @@ export class PlaywrightSession implements Session {
 ```
 
 Run:
+
 ```bash
 npx playwright test --config playwright.unit.config.ts packages/driver-playwright/tests/session.test.ts
 ```
+
 Expected: PASS — `5 passed`.
 
 - [ ] **Step 3: Commit.**
@@ -4688,6 +4920,7 @@ Expected: PASS — `5 passed`.
 git add packages/driver-playwright/src/session.ts packages/driver-playwright/tests/session.test.ts
 git commit -m "feat(web): PlaywrightSession with capability gating and re-resolving locate"
 ```
+
 Expected: commit succeeds.
 
 ---
@@ -4695,6 +4928,7 @@ Expected: commit succeeds.
 ### S3 — Task 8: `PlaywrightDriver` — the single guarded `existingPage` duck-type + `createSession`
 
 **Files:**
+
 - Modify: `packages/driver-playwright/src/driver.ts`
 - Modify: `packages/driver-playwright/src/index.ts`
 - Test: `packages/driver-playwright/tests/driver.test.ts`
@@ -4704,8 +4938,8 @@ Expected: commit succeeds.
 ```ts
 // packages/driver-playwright/tests/driver.test.ts
 import { test, expect } from "@playwright/test";
-import type { Locator } from "@sentinel/contracts";
-import { InMemorySink, DriverSessionError } from "@sentinel/core";
+import type { Locator } from "@sentinele2e/contracts";
+import { InMemorySink, DriverSessionError } from "@sentinele2e/core";
 import { PlaywrightDriver } from "../src/driver";
 
 const ready: Locator = {
@@ -4760,9 +4994,11 @@ test("createSession throws DriverSessionError when existingPage is absent", asyn
 ```
 
 Run:
+
 ```bash
 npx playwright test --config playwright.unit.config.ts packages/driver-playwright/tests/driver.test.ts
 ```
+
 Expected: FAILS — `PlaywrightDriver` has no `name`/`createSession` (the Task-1 stub is empty).
 
 - [ ] **Step 2: Implement `PlaywrightDriver`.** Static `name`/`capabilities`/`strategies` per §3.7; `createSession` duck-types `existingPage` (presence of `goto` AND `locator`) — the single guarded `as Page` cast point — throwing `DriverSessionError` (`kind:"driver-session"`) on mismatch, then constructs a `PlaywrightSession`.
@@ -4776,9 +5012,9 @@ import type {
   Session,
   SessionConfig,
   StrategyKind,
-} from "@sentinel/contracts";
-import { DriverSessionError } from "@sentinel/core";
-import type { TelemetrySink } from "@sentinel/core";
+} from "@sentinele2e/contracts";
+import { DriverSessionError } from "@sentinele2e/core";
+import type { TelemetrySink } from "@sentinele2e/core";
 import { PlaywrightSession } from "./session";
 
 const CAPABILITIES: ReadonlySet<Capability> = new Set<Capability>([
@@ -4853,9 +5089,11 @@ export { compileStrategy } from "./strategy-compiler";
 ```
 
 Run:
+
 ```bash
 npx playwright test --config playwright.unit.config.ts packages/driver-playwright/tests/driver.test.ts
 ```
+
 Expected: PASS — `4 passed`.
 
 - [ ] **Step 4: Commit.**
@@ -4864,6 +5102,7 @@ Expected: PASS — `4 passed`.
 git add packages/driver-playwright/src/driver.ts packages/driver-playwright/src/index.ts packages/driver-playwright/tests/driver.test.ts
 git commit -m "feat(web): PlaywrightDriver duck-types existingPage and creates sessions"
 ```
+
 Expected: commit succeeds.
 
 ---
@@ -4871,30 +5110,37 @@ Expected: commit succeeds.
 ### S3 — Task 9: Full-package acceptance gate — typecheck + all driver tests green (§10.5 satisfied)
 
 **Files:**
+
 - Test: (none new) — runs the whole `packages/driver-playwright/tests/**` suite + `tsc -b`.
 
 - [ ] **Step 1: Type-check the whole solution** (proves the driver compiles under `strict` + `noUncheckedIndexedAccess` against the contracts/core project references).
 
 Run:
+
 ```bash
 npm run typecheck
 ```
+
 Expected: exits 0 with no output (`tsc -b` clean across `contracts`, `core`, `driver-playwright`).
 
 - [ ] **Step 2: Run every driver-playwright unit/browser test together** (the four §7 obligations + §10.5).
 
 Run:
+
 ```bash
 npx playwright test --config playwright.unit.config.ts packages/driver-playwright/tests
 ```
+
 Expected: PASS — all spec files green, e.g. `21 passed` (package-wiring 2, strategy-compiler 4, resolver 4, action 4, assertion-waitfor 2, assertion-firstof 2, session 5, driver 4 — adjust the count to the actual total). Crucially the `assertion-firstof.test.ts` "THROWS TimeoutError … NEITHER branch is reachable" case passes, satisfying §10.5.
 
 - [ ] **Step 3: Lint the package** (proves the `no-restricted-imports` exemption covers `packages/driver-playwright/**` and the `tests/**` runner files, and no app code leaked a Playwright import).
 
 Run:
+
 ```bash
 npm run lint -- packages/driver-playwright
 ```
+
 Expected: exits 0, no errors/warnings.
 
 - [ ] **Step 4: Commit the acceptance marker** (an empty, conventional commit documenting the gate so the plan has a per-task commit; no files change).
@@ -4902,13 +5148,15 @@ Expected: exits 0, no errors/warnings.
 ```bash
 git commit --allow-empty -m "test(web): driver-playwright acceptance gate green (S3 §10.5)"
 ```
+
 Expected: commit succeeds.
 
 ---
 
 **Author's grounding notes (for the assembler / implementer — not part of the task list):**
+
 - Every type/signature above is copied from the approved spec: `Driver`/`Session`/`SessionConfig`/`Action`/`Assertion`/`ElementHandle` (§3.3–§3.7), `Capability`/`StrategyKind`/`ElementState`/`BranchProgress`/`LocatorStrategy`/`Locator`/`GestureTarget` (§3.1–§3.6), `LocatorResolver`/`LocatorResolution`/`StrategyRegistry` (§7), `LocatorResolvedEvent`/`AssertionEvent`/`TelemetrySink`/`InMemorySink` (§6), and the error classes `TimeoutError`/`SelectorNotFoundError`/`SelectorAmbiguousError`/`DriverSessionError`/`CapabilityUnsupportedError` with `SystemFailureContext` (§5).
-- S3 consumes S2's `@sentinel/core` exports. Two S2-naming assumptions are flagged inline in Task 3 (`defaultStrategyRegistry` pre-seeded with the §7 rank table) and depended on throughout (`InMemorySink`, the five error classes, `LocatorResolver`/`LocatorResolution` types, `TelemetrySink`). If S2 named the pre-seeded registry differently, Task 3 Step 3's note gives the inline fallback (`new StrategyRegistry()` + the §7 rank `register` calls).
+- S3 consumes S2's `@sentinele2e/core` exports. Two S2-naming assumptions are flagged inline in Task 3 (`defaultStrategyRegistry` pre-seeded with the §7 rank table) and depended on throughout (`InMemorySink`, the five error classes, `LocatorResolver`/`LocatorResolution` types, `TelemetrySink`). If S2 named the pre-seeded registry differently, Task 3 Step 3's note gives the inline fallback (`new StrategyRegistry()` + the §7 rank `register` calls).
 - The §7 obligations land in: (a) Task 3 (resolve emits `locator.resolved` before returning the handle); (b) Task 6 (`waitForFirstOf` race + loser-cancellation + throw-with-`branchProgress`); (c) Task 4 (`tap`/`typeText` carry Playwright auto-wait actionability); (d) `process.hrtime.bigint()` deltas drive `resolveDurationMs`/`durationMs` in Tasks 3 and 5–6.
 - The live CSS in the test fixtures (`.page-card-body.invalid .btn-login`, `div.desktop-wrapper`, `button.btn-login[type='submit']`) is byte-aligned with the spec's `locators.ts` (§7) and the current `log-in-selectors.ts`/`app-shell-selectors.ts`, so S4 can reuse these locators unchanged.
 
@@ -4916,15 +5164,16 @@ Expected: commit succeeds.
 
 > Sub-step S4 — Auth-slice migration onto the contracts
 
-This sub-step rewrites the relocated auth slice (moved verbatim in S1) onto the `@sentinel/*` contracts: new domain locators, the rich `LoginResult`, a `defaultTimeoutMs` config, `Session`-based components, and a folded flow that fixes defects D1–D5. After S4 the OLD e2e specs (`tests/auth/log-in.spec.ts`, `_support/fixtures/auth.ts`) will NOT compile against the new nested result shape — this is EXPECTED and is fixed in S5; S4 acceptance is therefore `npm run typecheck` over the packages + example **src** (not the e2e test files) green, plus `npm run lint` green.
+This sub-step rewrites the relocated auth slice (moved verbatim in S1) onto the `@sentinele2e/*` contracts: new domain locators, the rich `LoginResult`, a `defaultTimeoutMs` config, `Session`-based components, and a folded flow that fixes defects D1–D5. After S4 the OLD e2e specs (`tests/auth/log-in.spec.ts`, `_support/fixtures/auth.ts`) will NOT compile against the new nested result shape — this is EXPECTED and is fixed in S5; S4 acceptance is therefore `npm run typecheck` over the packages + example **src** (not the e2e test files) green, plus `npm run lint` green.
 
-> NOTE TO THE ENGINEER: This sub-step assumes S1 (monorepo move) has relocated the flat `src/` tree into `examples/web-erpnext/src/`, and S2/S3 have produced `@sentinel/contracts`, `@sentinel/core`, and `@sentinel/driver-playwright`. All paths below are the post-S1 paths. The OLD flat `src/...` paths in the repo today are the S1 source-of-move; do not edit them here. Run all commands from the workspace root `/Users/zeeshan.amjad/Documents/sentinel-e2e`.
+> NOTE TO THE ENGINEER: This sub-step assumes S1 (monorepo move) has relocated the flat `src/` tree into `examples/web-erpnext/src/`, and S2/S3 have produced `@sentinele2e/contracts`, `@sentinele2e/core`, and `@sentinele2e/driver-playwright`. All paths below are the post-S1 paths. The OLD flat `src/...` paths in the repo today are the S1 source-of-move; do not edit them here. Run all commands from the workspace root `/Users/zeeshan.amjad/Documents/sentinel-e2e`.
 
 ---
 
 ### S4 — Task 1: Author `defaultTimeoutMs` config
 
 **Files:**
+
 - Create: `examples/web-erpnext/src/config/timeout.ts`
 - Test: `examples/web-erpnext/tests/config/timeout.test.ts` (unit-runner dir)
 
@@ -4980,6 +5229,7 @@ Expected: commit succeeds (commitlint + lint-staged pass).
 ### S4 — Task 2: Rewrite `LoginResult` to the rich nested `Result`
 
 **Files:**
+
 - Modify: `examples/web-erpnext/src/domain/auth/log-in-result.ts`
 - Test: `examples/web-erpnext/tests/domain/log-in-result.test.ts`
 
@@ -4994,7 +5244,7 @@ import type {
   LoginReason,
   LoginFailureDetails,
 } from "../../src/domain/auth/log-in-result";
-import type { ResultMeta } from "@sentinel/core";
+import type { ResultMeta } from "@sentinele2e/core";
 
 const meta: ResultMeta = {
   correlationId: "c-1",
@@ -5040,7 +5290,7 @@ Expected: fails — type errors / "Module has no exported member 'LoginSuccessDa
 
 ```ts
 // examples/web-erpnext/src/domain/auth/log-in-result.ts
-import type { Result } from "@sentinel/core";
+import type { Result } from "@sentinele2e/core";
 
 export interface LoginSuccessData {
   readonly username: string;
@@ -5052,7 +5302,11 @@ export interface LoginFailureDetails {
   readonly finalUrl?: string;
 }
 
-export type LoginResult = Result<LoginSuccessData, LoginReason, LoginFailureDetails>;
+export type LoginResult = Result<
+  LoginSuccessData,
+  LoginReason,
+  LoginFailureDetails
+>;
 ```
 
 - [ ] **Step 4: Run it and confirm PASS.**
@@ -5075,6 +5329,7 @@ Expected: commit succeeds.
 ### S4 — Task 3: Update the `domain/auth` barrel to `export type` LoginResult
 
 **Files:**
+
 - Modify: `examples/web-erpnext/src/domain/auth/index.ts`
 - Test: `examples/web-erpnext/tests/domain/auth-barrel.test.ts`
 
@@ -5090,7 +5345,12 @@ test("auth barrel re-exports Credentials and LoginResult as types", () => {
   const result: LoginResult = {
     status: "success",
     data: { username: "u" },
-    meta: { correlationId: "c", flowName: "auth.login", startedAt: 0, durationMs: 0 },
+    meta: {
+      correlationId: "c",
+      flowName: "auth.login",
+      startedAt: 0,
+      durationMs: 0,
+    },
   };
   expect(creds.username).toBe("u");
   expect(result.status).toBe("success");
@@ -5135,6 +5395,7 @@ Expected: commit succeeds.
 ### S4 — Task 4: Create the auth `locators.ts` (login + app-shell, dual-candidate invalid)
 
 **Files:**
+
 - Create: `examples/web-erpnext/src/domain/auth/locators.ts`
 - Test: `examples/web-erpnext/tests/domain/locators.test.ts`
 
@@ -5143,7 +5404,10 @@ Expected: commit succeeds.
 ```ts
 // examples/web-erpnext/tests/domain/locators.test.ts
 import { test, expect } from "@playwright/test";
-import { loginLocators, appShellLocators } from "../../src/domain/auth/locators";
+import {
+  loginLocators,
+  appShellLocators,
+} from "../../src/domain/auth/locators";
 
 test("login locators expose stable logical names", () => {
   expect(loginLocators.username.logicalName).toBe("auth.login.username");
@@ -5153,16 +5417,24 @@ test("login locators expose stable logical names", () => {
 });
 
 test("css fallbacks stay byte-identical to migrated selectors", () => {
-  const usernameCss = loginLocators.username.candidates.find((c) => c.kind === "css");
-  const passwordCss = loginLocators.password.candidates.find((c) => c.kind === "css");
+  const usernameCss = loginLocators.username.candidates.find(
+    (c) => c.kind === "css",
+  );
+  const passwordCss = loginLocators.password.candidates.find(
+    (c) => c.kind === "css",
+  );
   expect(usernameCss?.value).toBe("input#login_email[autocomplete='username']");
-  expect(passwordCss?.value).toBe("input#login_password[autocomplete='current-password']");
+  expect(passwordCss?.value).toBe(
+    "input#login_password[autocomplete='current-password']",
+  );
 });
 
 test("invalid locator leads with structural .invalid candidate, button second (D-3)", () => {
   const [first, second] = loginLocators.invalid.candidates;
   expect(first?.kind).toBe("css");
-  expect(first?.value).toBe(".page-card-body.invalid .btn-login[type='submit']");
+  expect(first?.value).toBe(
+    ".page-card-body.invalid .btn-login[type='submit']",
+  );
   expect(second?.kind).toBe("css");
   expect(second?.value).toBe("button.btn-login[type='submit']");
 });
@@ -5185,7 +5457,7 @@ Expected: fails — "Cannot find module '../../src/domain/auth/locators'"; 0 pas
 
 ```ts
 // examples/web-erpnext/src/domain/auth/locators.ts
-import type { Locator } from "@sentinel/contracts";
+import type { Locator } from "@sentinele2e/contracts";
 
 export const loginLocators = {
   username: {
@@ -5199,7 +5471,10 @@ export const loginLocators = {
     logicalName: "auth.login.password",
     candidates: [
       { kind: "label", value: "Password" },
-      { kind: "css", value: "input#login_password[autocomplete='current-password']" },
+      {
+        kind: "css",
+        value: "input#login_password[autocomplete='current-password']",
+      },
     ],
   },
   submit: {
@@ -5213,7 +5488,10 @@ export const loginLocators = {
   invalid: {
     logicalName: "auth.login.invalidState",
     candidates: [
-      { kind: "css", value: ".page-card-body.invalid .btn-login[type='submit']" }, // structural (enum INVALID_STATE)
+      {
+        kind: "css",
+        value: ".page-card-body.invalid .btn-login[type='submit']",
+      }, // structural (enum INVALID_STATE)
       { kind: "css", value: "button.btn-login[type='submit']" }, // today's text source, retained
     ],
   },
@@ -5250,6 +5528,7 @@ Expected: commit succeeds.
 ### S4 — Task 5: Rewrite `AppShell` component onto `Session` (fixes D1, D2)
 
 **Files:**
+
 - Create: `examples/web-erpnext/src/components/auth/app-shell.ts`
 - Test: `examples/web-erpnext/tests/components/app-shell.test.ts`
 
@@ -5260,14 +5539,18 @@ Expected: commit succeeds.
 import { test, expect } from "@playwright/test";
 import { AppShell } from "../../src/components/auth/app-shell";
 import { appShellLocators } from "../../src/domain/auth/locators";
-import type { Locator, ElementState } from "@sentinel/contracts";
+import type { Locator, ElementState } from "@sentinele2e/contracts";
 
 type WaitForCall = { target: Locator; state: ElementState; timeoutMs?: number };
 
 function fakeSession(behavior: (call: WaitForCall) => Promise<void>) {
   const calls: WaitForCall[] = [];
   const assert = {
-    async waitFor(target: Locator, state: ElementState, opts?: { timeoutMs?: number }) {
+    async waitFor(
+      target: Locator,
+      state: ElementState,
+      opts?: { timeoutMs?: number },
+    ) {
       const call = { target, state, timeoutMs: opts?.timeoutMs };
       calls.push(call);
       await behavior(call);
@@ -5292,7 +5575,9 @@ test("waitForReady propagates a timeout throw (D2: does not resolve on timeout)"
   const { session } = fakeSession(async () => {
     throw new Error("TimeoutError");
   });
-  await expect(new AppShell(session).waitForReady(10)).rejects.toThrow("TimeoutError");
+  await expect(new AppShell(session).waitForReady(10)).rejects.toThrow(
+    "TimeoutError",
+  );
 });
 ```
 
@@ -5307,7 +5592,7 @@ Expected: fails — "Cannot find module '../../src/components/auth/app-shell'"; 
 
 ```ts
 // examples/web-erpnext/src/components/auth/app-shell.ts
-import type { Session } from "@sentinel/contracts";
+import type { Session } from "@sentinele2e/contracts";
 import { appShellLocators } from "../../domain/auth/locators";
 import { defaultTimeoutMs } from "../../config/timeout";
 
@@ -5320,7 +5605,9 @@ export class AppShell {
   constructor(private readonly session: Session) {}
 
   async waitForReady(timeoutMs: number = defaultTimeoutMs): Promise<void> {
-    await this.session.assert.waitFor(appShellLocators.ready, "visible", { timeoutMs });
+    await this.session.assert.waitFor(appShellLocators.ready, "visible", {
+      timeoutMs,
+    });
   }
 }
 ```
@@ -5345,6 +5632,7 @@ Expected: commit succeeds.
 ### S4 — Task 6: Rewrite `LogInForm` component onto `Session` (fixes D4)
 
 **Files:**
+
 - Create: `examples/web-erpnext/src/components/auth/log-in-form.ts`
 - Test: `examples/web-erpnext/tests/components/log-in-form.test.ts`
 
@@ -5355,7 +5643,7 @@ Expected: commit succeeds.
 import { test, expect } from "@playwright/test";
 import { LogInForm } from "../../src/components/auth/log-in-form";
 import { loginLocators } from "../../src/domain/auth/locators";
-import type { Locator } from "@sentinel/contracts";
+import type { Locator } from "@sentinele2e/contracts";
 
 function fakeSession() {
   const typed: Array<{ target: Locator; text: string }> = [];
@@ -5409,7 +5697,7 @@ Expected: fails — "Cannot find module '../../src/components/auth/log-in-form'"
 
 ```ts
 // examples/web-erpnext/src/components/auth/log-in-form.ts
-import type { Session } from "@sentinel/contracts";
+import type { Session } from "@sentinele2e/contracts";
 import type { Credentials } from "../../domain/auth";
 import { loginLocators } from "../../domain/auth/locators";
 
@@ -5424,8 +5712,14 @@ export class LogInForm {
   constructor(private readonly session: Session) {}
 
   async fill(credentials: Credentials): Promise<void> {
-    await this.session.action.typeText(loginLocators.username, credentials.username);
-    await this.session.action.typeText(loginLocators.password, credentials.password);
+    await this.session.action.typeText(
+      loginLocators.username,
+      credentials.username,
+    );
+    await this.session.action.typeText(
+      loginLocators.password,
+      credentials.password,
+    );
   }
 
   async submit(): Promise<void> {
@@ -5459,6 +5753,7 @@ Expected: commit succeeds.
 ### S4 — Task 7: Fold the page object into the flow `log-in.ts` (fixes D3, D5; D-2 result)
 
 **Files:**
+
 - Modify: `examples/web-erpnext/src/flows/auth/log-in.ts`
 - Test: `examples/web-erpnext/tests/flows/log-in.test.ts`
 
@@ -5468,12 +5763,16 @@ Expected: commit succeeds.
 // examples/web-erpnext/tests/flows/log-in.test.ts
 import { test, expect } from "@playwright/test";
 import { logIn } from "../../src/flows/auth/log-in";
-import { InMemorySink } from "@sentinel/core";
-import type { Locator, ElementState, Session } from "@sentinel/contracts";
+import { InMemorySink } from "@sentinele2e/core";
+import type { Locator, ElementState, Session } from "@sentinele2e/contracts";
 
 /** Build a fake Page (only the methods the driver duck-types / flow may touch). */
 function fakePage(url: string) {
-  return { goto: async () => {}, locator: () => ({}), url: () => url } as unknown;
+  return {
+    goto: async () => {},
+    locator: () => ({}),
+    url: () => url,
+  } as unknown;
 }
 
 /**
@@ -5482,7 +5781,11 @@ function fakePage(url: string) {
  * injectable hook documented in §8 (default = PlaywrightDriver.createSession). The fake
  * session decides the race winner.
  */
-function fakeSession(sink: InMemorySink, winner: "INVALID" | "SUCCESS", id = "run-1"): Session {
+function fakeSession(
+  sink: InMemorySink,
+  winner: "INVALID" | "SUCCESS",
+  id = "run-1",
+): Session {
   return {
     id,
     driver: "fake",
@@ -5500,7 +5803,11 @@ function fakeSession(sink: InMemorySink, winner: "INVALID" | "SUCCESS", id = "ru
     assert: {
       waitFor: async () => {},
       waitForFirstOf: async (
-        _conds: ReadonlyArray<{ label: string; target: Locator; state: ElementState }>,
+        _conds: ReadonlyArray<{
+          label: string;
+          target: Locator;
+          state: ElementState;
+        }>,
       ) => winner,
     },
     end: async () => {},
@@ -5527,7 +5834,9 @@ test("invalid path returns business-failure with stable reason and truthy messag
   expect(types).toContain("flow.finished");
   const biz = sink.events.find((e) => e.type === "business.failure");
   expect(biz).toBeDefined();
-  expect((biz as { domainReason?: string }).domainReason).toBe("INVALID_CREDENTIALS");
+  expect((biz as { domainReason?: string }).domainReason).toBe(
+    "INVALID_CREDENTIALS",
+  );
 
   // one correlationId across the run
   const ids = new Set(sink.events.map((e) => e.traceId));
@@ -5560,10 +5869,16 @@ Expected: fails — the old flow has no `opts.sink`/`opts.createSession`, return
 ```ts
 // examples/web-erpnext/src/flows/auth/log-in.ts
 import type { Page } from "@playwright/test";
-import type { Session } from "@sentinel/contracts";
-import type { TelemetrySink } from "@sentinel/core";
-import { CompositeSink, InMemorySink, JsonlSink, ok, businessFailure } from "@sentinel/core";
-import { PlaywrightDriver } from "@sentinel/driver-playwright";
+import type { Session } from "@sentinele2e/contracts";
+import type { TelemetrySink } from "@sentinele2e/core";
+import {
+  CompositeSink,
+  InMemorySink,
+  JsonlSink,
+  ok,
+  businessFailure,
+} from "@sentinele2e/core";
+import { PlaywrightDriver } from "@sentinele2e/driver-playwright";
 import type { Credentials, LoginResult } from "../../domain/auth";
 import { loginLocators, appShellLocators } from "../../domain/auth/locators";
 import { LogInForm } from "../../components/auth/log-in-form";
@@ -5647,7 +5962,13 @@ async function logIn(
   if (winner === "INVALID") {
     const message = await form.readMessage();
     emitBusinessFailure(flowSink, correlationId, FLOW_NAME, INVALID_REASON);
-    emitFlowFinished(flowSink, correlationId, FLOW_NAME, "business-failure", INVALID_REASON);
+    emitFlowFinished(
+      flowSink,
+      correlationId,
+      FLOW_NAME,
+      "business-failure",
+      INVALID_REASON,
+    );
     return businessFailure(INVALID_REASON, meta, {
       message,
       details: { username: credentials.username, finalUrl },
@@ -5663,7 +5984,10 @@ async function readCurrentUrl(session: Session): Promise<string | undefined> {
 }
 
 function nowTiming() {
-  return { startWallClockMs: Date.now(), startMonotonicNs: process.hrtime.bigint() };
+  return {
+    startWallClockMs: Date.now(),
+    startMonotonicNs: process.hrtime.bigint(),
+  };
 }
 
 function emitFlowStarted(
@@ -5756,6 +6080,7 @@ Expected: commit succeeds.
 ### S4 — Task 8: Delete the old `ui/` tree and dead flat-tree stubs
 
 **Files:**
+
 - Delete: `examples/web-erpnext/src/ui/**` (the whole tree: `components/{log-in-form,app-shell,form,dialog,data-table}/**`, `pages/**`, barrels `ui/index.ts`, `ui/components/index.ts`, `ui/pages/index.ts`)
 - Delete: `examples/web-erpnext/src/config/index.ts` (empty barrel)
 - Delete: `examples/web-erpnext/src/selectors/**` (folded into `locators.ts`)
@@ -5797,7 +6122,7 @@ Expected: tsc -b reports errors ONLY in examples/web-erpnext/tests/auth/log-in.s
 
 ```
 Run: npm run lint
-Expected: passes — no `@playwright/test` import outside packages/driver-playwright/** and the test-runner exemption; the new components/flows import only `@sentinel/*`.
+Expected: passes — no `@playwright/test` import outside packages/driver-playwright/** and the test-runner exemption; the new components/flows import only `@sentinele2e/*`.
 ```
 
 > ACCEPTANCE CLARIFICATION (read before panicking): per the S4 scope, `npm run typecheck` is NOT fully green at the end of S4 — the two OLD e2e files (`tests/auth/log-in.spec.ts`, `_support/fixtures/auth.ts`) reference the removed flat result shape and will report type errors. That is the intended hand-off state; S5 edits those two files to the nested `status`/`reason`/`message` shape. S4 is "done" when: (a) all new S4 unit tests pass, (b) `npm run lint` is green, (c) the ONLY typecheck failures are those two known e2e files. If any package or any `src/**` file under the example fails to typecheck, S4 is NOT done.
@@ -5830,6 +6155,7 @@ Migrates the two e2e specs/fixtures to the nested `Result` shape, adds offline t
 ### S5 — Task 1: Migrate `log-in.spec.ts` to the nested `business-failure` shape (D-2)
 
 **Files:**
+
 - Modify: `examples/web-erpnext/tests/auth/log-in.spec.ts`
 
 - [ ] **Step 1: Run the spec against the new `LoginResult` to see it FAIL to type-check / assert on the old flat fields.**
@@ -5910,6 +6236,7 @@ Expected: [feat/core-spine <hash>] test(example): migrate log-in spec to nested 
 ### S5 — Task 2: Migrate `fixtures/auth.ts` to read `status`/`message`/`reason` (D-2, R-1)
 
 **Files:**
+
 - Modify: `examples/web-erpnext/tests/_support/fixtures/auth.ts`
 
 - [ ] **Step 1: Run typecheck to see the fixture FAIL on the old flat `result.success`/`result.errorMessage`.**
@@ -5985,6 +6312,7 @@ Expected: [feat/core-spine <hash>] test(example): read nested Result status/mess
 ### S5 — Task 3: Add a minimal login-like DOM fixture (offline, no live app)
 
 **Files:**
+
 - Create: `examples/web-erpnext/tests/_support/login-dom.ts`
 
 The telemetry assertions (Task 4) drive the **real** `logIn` flow against an inline DOM so they need **no** ERPNext app and **no** env. This fixture returns the HTML strings the S4 locators resolve against: the rank-6 css candidates (`input#login_email[autocomplete='username']`, `input#login_password[autocomplete='current-password']`, `button.btn-login[type='submit']`), the structural invalid signal (`.page-card-body.invalid …`), and the success shell (`div.desktop-wrapper`).
@@ -5999,8 +6327,8 @@ import { LOGIN_DOM, INVALID_DOM } from "./login-dom";
 test("login DOM exposes the css-fallback + success-shell selectors", () => {
   expect(LOGIN_DOM).toContain("input#login_email");
   expect(LOGIN_DOM).toContain("input#login_password");
-  expect(LOGIN_DOM).toContain("button class=\"btn-login\"");
-  expect(LOGIN_DOM).toContain("div class=\"desktop-wrapper\"");
+  expect(LOGIN_DOM).toContain('button class="btn-login"');
+  expect(LOGIN_DOM).toContain('div class="desktop-wrapper"');
 });
 
 test("invalid DOM exposes the structural .page-card-body.invalid signal", () => {
@@ -6089,6 +6417,7 @@ Expected: [feat/core-spine <hash>] test(example): add offline login-like DOM fix
 ### S5 — Task 4: Telemetry assertion test — invalid path emits the four classifier signals (§10.4)
 
 **Files:**
+
 - Create: `examples/web-erpnext/tests/auth/telemetry.spec.ts`
 
 Drives the real `logIn` flow against `INVALID_DOM`, injecting an `InMemorySink` via the S4 `opts.sink`, and asserts the run emitted `locator.resolved` (with `resolvedRank`/`candidates`), `assertion`, `flow.finished`, and `business.failure` with `domainReason:"INVALID_CREDENTIALS"`. This uses the `page` fixture (S3-style) against `page.setContent()`, so no live app / no env.
@@ -6098,7 +6427,7 @@ Drives the real `logIn` flow against `INVALID_DOM`, injecting an `InMemorySink` 
 ```ts
 // examples/web-erpnext/tests/auth/telemetry.spec.ts
 import { test, expect } from "@playwright/test";
-import { InMemorySink } from "@sentinel/core";
+import { InMemorySink } from "@sentinele2e/core";
 import { logIn } from "../../src/flows";
 import { INVALID_DOM } from "../_support/login-dom";
 
@@ -6131,10 +6460,12 @@ test("invalid login emits locator.resolved, assertion, flow.finished, business.f
     Array.isArray((resolved as { candidates: unknown[] }).candidates),
   ).toBe(true);
 
-  const businessFailure = sink.events.find((e) => e.type === "business.failure");
-  expect(
-    (businessFailure as { domainReason: string }).domainReason,
-  ).toBe("INVALID_CREDENTIALS");
+  const businessFailure = sink.events.find(
+    (e) => e.type === "business.failure",
+  );
+  expect((businessFailure as { domainReason: string }).domainReason).toBe(
+    "INVALID_CREDENTIALS",
+  );
 });
 ```
 
@@ -6148,7 +6479,7 @@ Expected: 1 passed
 
 > If this FAILS at this point, the failure is in S4's `logIn` `opts.sink` wiring or the resolver/flow emit obligations (§6, §7 obligation (a)), **not** in this test — the test text is the spec's §10.4 assertion verbatim. Fix S4, not the test. If S4 is correct, it passes first run.
 
-- [ ] **Step 2: Confirm it type-checks (imports `InMemorySink` from `@sentinel/core`; resolves via tsconfig `paths`).**
+- [ ] **Step 2: Confirm it type-checks (imports `InMemorySink` from `@sentinele2e/core`; resolves via tsconfig `paths`).**
 
 ```
 Run: npm run typecheck 2>&1 | grep -c "telemetry.spec"
@@ -6174,6 +6505,7 @@ Expected: [feat/core-spine <hash>] test(example): assert telemetry signals on th
 ### S5 — Task 5: Telemetry test — `JsonlSink` writes the per-run file and round-trips bigint timing (§10.4)
 
 **Files:**
+
 - Create: `examples/web-erpnext/tests/auth/jsonl-telemetry.spec.ts`
 
 Drives the real `logIn` against `INVALID_DOM` with the **default** sink wiring (`CompositeSink([InMemorySink, JsonlSink])`, filePath `test-results/telemetry/<runId>.jsonl`), then asserts the JSONL file exists, every line parses, and the bigint timing fields (`startMonotonicNs`/`endMonotonicNs`) survive as numeric-string and re-parse to `bigint`.
@@ -6276,6 +6608,7 @@ Expected: [feat/core-spine <hash>] test(example): assert JsonlSink file write an
 ### S5 — Task 6: Final acceptance — run the full spec §10 checklist (1–6)
 
 **Files:**
+
 - (no source changes; this task is the slice-A acceptance gate)
 
 Runs each §10 criterion as its own command with the exact expected output, flagging which checks run **offline** vs which need `BASE_URL` + `ADMIN_USER` + `ADMIN_PASSWORD` + a running ERPNext app.
@@ -6300,7 +6633,7 @@ Run: npm run typecheck
 Expected: (no output; exit code 0)
 ```
 
-- [ ] **Step 3: §10.6 — no `@playwright/test` symbol is importable from `@sentinel/core` or `@sentinel/contracts` (lint ban + clean `dependencies`). Offline.**
+- [ ] **Step 3: §10.6 — no `@playwright/test` symbol is importable from `@sentinele2e/core` or `@sentinele2e/contracts` (lint ban + clean `dependencies`). Offline.**
 
 ```
 Run: grep -RIl "@playwright/test\|from \"playwright\"" packages/core/src packages/contracts/src; echo "matches-exit:$?"; node -e "const c=require('./packages/core/package.json').dependencies||{};const k=require('./packages/contracts/package.json').dependencies||{};console.log('core-has-pw:'+('@playwright/test' in c));console.log('contracts-has-pw:'+('@playwright/test' in k));"
@@ -6360,8 +6693,9 @@ Expected: 2 passed
 ```
 
 > **Offline vs live-app matrix.**
+>
 > - **Offline (no env, no app):** §10.1 lint, §10.2 typecheck, §10.4 telemetry asserts, §10.5 race-throws, §10.6 no-playwright-import — Steps 1–6. These are the slice-A acceptance gate that runs everywhere.
-> - **Needs `BASE_URL`+`ADMIN_USER`+`ADMIN_PASSWORD`+running ERPNext:** §10.3 the two `log-in.spec.ts` e2e cases — Step 7. The nested-shape *assertions* and *compilation* are already proven offline (Tasks 1–2 typecheck); Step 7 only confirms they pass against the real app.
+> - **Needs `BASE_URL`+`ADMIN_USER`+`ADMIN_PASSWORD`+running ERPNext:** §10.3 the two `log-in.spec.ts` e2e cases — Step 7. The nested-shape _assertions_ and _compilation_ are already proven offline (Tasks 1–2 typecheck); Step 7 only confirms they pass against the real app.
 
 - [ ] **Step 8: Commit the acceptance record (no source changes — an empty commit marks the slice-A gate green).**
 

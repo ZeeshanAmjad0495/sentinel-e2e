@@ -3,7 +3,7 @@ import type {
   StrategyKind,
   ElementState,
   BranchProgress,
-} from "@sentinel/contracts";
+} from "@sentinele2e/contracts";
 import type { Artifact, SystemFailureKind } from "../errors";
 import type { TelemetryEnvelope } from "./event";
 

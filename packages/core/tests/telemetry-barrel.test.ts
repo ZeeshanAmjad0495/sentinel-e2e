@@ -12,9 +12,9 @@ import {
   JsonlSink,
   startTimer,
   durationMsFromNs,
-} from "@sentinel/core";
+} from "@sentinele2e/core";
 
-test("telemetry public surface is re-exported from @sentinel/core", () => {
+test("telemetry public surface is re-exported from @sentinele2e/core", () => {
   expect(TELEMETRY_SCHEMA_VERSION).toBe("1.0.0");
   expect(typeof SpanContext).toBe("function");
   expect(typeof StampingSink).toBe("function");

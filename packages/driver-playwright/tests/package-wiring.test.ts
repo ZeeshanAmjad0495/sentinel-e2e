@@ -7,9 +7,9 @@ import * as path from "node:path";
 // bare-specifier `import()` resolves through the node_modules symlink to
 // untransformed TypeScript and throws `SyntaxError: Unexpected token 'export'`.
 // A static import is resolved by Playwright's TS loader via the tsconfig `paths`
-// mapping (exactly how every @sentinel/* import in the repo's tests works), so
+// mapping (exactly how every @sentinele2e/* import in the repo's tests works), so
 // the barrel-export assertion below is unchanged in intent.
-import * as driverBarrel from "@sentinel/driver-playwright";
+import * as driverBarrel from "@sentinele2e/driver-playwright";
 
 test("barrel exposes PlaywrightDriver", () => {
   expect(

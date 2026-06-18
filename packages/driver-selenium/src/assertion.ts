@@ -5,9 +5,9 @@ import type {
   BranchProgress,
   ElementState,
   Locator,
-} from "@sentinel/contracts";
-import type { LocatorResolver, TelemetrySink } from "@sentinel/core";
-import { SelectorNotFoundError, TimeoutError } from "@sentinel/core";
+} from "@sentinele2e/contracts";
+import type { LocatorResolver, TelemetrySink } from "@sentinele2e/core";
+import { SelectorNotFoundError, TimeoutError } from "@sentinele2e/core";
 import type { SeleniumElementHandle } from "./element";
 
 interface AssertContext {

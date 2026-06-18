@@ -1,5 +1,5 @@
 {
-  "name": "@sentinel/contracts",
+  "name": "@sentinele2e/contracts",
   "version": "0.1.0",
   "type": "commonjs",
   "main": "dist/index.js",

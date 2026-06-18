@@ -1,9 +1,12 @@
 // packages/driver-playwright/tests/resolver.test.ts
 import { test, expect } from "@playwright/test";
 import type { Page } from "@playwright/test";
-import type { Locator } from "@sentinel/contracts";
-import { InMemorySink } from "@sentinel/core";
-import { SelectorNotFoundError, SelectorAmbiguousError } from "@sentinel/core";
+import type { Locator } from "@sentinele2e/contracts";
+import { InMemorySink } from "@sentinele2e/core";
+import {
+  SelectorNotFoundError,
+  SelectorAmbiguousError,
+} from "@sentinele2e/core";
 import { PlaywrightResolver } from "../src/resolver";
 
 const STRATEGIES = new Set(["role", "label", "text", "testid", "css", "xpath"]);

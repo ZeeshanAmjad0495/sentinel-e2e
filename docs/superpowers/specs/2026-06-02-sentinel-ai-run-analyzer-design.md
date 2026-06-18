@@ -1,4 +1,4 @@
-# Sentinel Slice B — `@sentinel/ai` Run-Analyzer: Design Spec
+# Sentinel Slice B — `@sentinele2e/ai` Run-Analyzer: Design Spec
 
 - **Status:** Draft for review
 - **Date:** 2026-06-02
@@ -24,7 +24,7 @@ The analyzer is the first realization of Sentinel's thesis: the framework emits 
 
 Principles:
 
-1. **Driver-agnostic by construction.** `@sentinel/ai` depends ONLY on the telemetry contract (`@sentinel/core` event/signal types) — it has zero knowledge of Playwright or any driver. The lint boundary BANS driver imports from `@sentinel/ai`. The same analyzer will work unchanged on future mobile/Selenium runs. This is the tool-agnostic thesis paying a dividend.
+1. **Driver-agnostic by construction.** `@sentinele2e/ai` depends ONLY on the telemetry contract (`@sentinele2e/core` event/signal types) — it has zero knowledge of Playwright or any driver. The lint boundary BANS driver imports from `@sentinele2e/ai`. The same analyzer will work unchanged on future mobile/Selenium runs. This is the tool-agnostic thesis paying a dividend.
 2. **Determinism first.** The telemetry was deliberately designed so failure classification is derivable from envelope fields (slice-A spec §6). The rule layer is pure, free, and exhaustively unit-testable. The LLM is an _explainer and tie-breaker_, not the classifier — keeping results grounded, cheap, and reproducible.
 3. **Graceful degradation.** No `ANTHROPIC_API_KEY` → a complete rules-only analysis (verdicts + evidence), with a note that the explanation was skipped. An LLM error never fails the analysis.
 4. **Nothing secret leaves the process.** The telemetry is already credential-free (verified in slice A). The analyzer adds a redaction pass as defense-in-depth before any payload is sent to the Claude API, and sends _only_ telemetry-derived data — never env vars or anything else.
@@ -34,11 +34,11 @@ Principles:
 
 ## 2. Package layout
 
-New workspace package `@sentinel/ai`, depends on `@sentinel/core` (telemetry types) + `@sentinel/contracts` (shared types) + `@anthropic-ai/sdk` (the real provider only).
+New workspace package `@sentinele2e/ai`, depends on `@sentinele2e/core` (telemetry types) + `@sentinele2e/contracts` (shared types) + `@anthropic-ai/sdk` (the real provider only).
 
 ```
 packages/
-  ai/                                  # @sentinel/ai — driver-AGNOSTIC; may import @anthropic-ai/sdk, NEVER a driver
+  ai/                                  # @sentinele2e/ai — driver-AGNOSTIC; may import @anthropic-ai/sdk, NEVER a driver
     package.json   tsconfig.json
     src/
       load.ts                          # JSONL/in-memory -> typed ordered TelemetryEvent[]
@@ -59,7 +59,7 @@ packages/
     tests/                             # Playwright unit runner (*.test.ts); offline, no API
 ```
 
-**Wiring:** add `@sentinel/ai` to the root `tsconfig` references graph, to `tsconfig.base.json` `paths` (`@sentinel/ai` + `@sentinel/ai/*`), to `tsconfig.eslint.json` `include`, and as a workspace. **ESLint boundary:** extend the `no-restricted-imports` ban so `@sentinel/ai/**` cannot import `@playwright/test`, `playwright`, OR any `@sentinel/driver-*` package — the analyzer must stay driver-agnostic. `@anthropic-ai/sdk` is allowed only inside `packages/ai/src/llm/claude-provider.ts` (scope the SDK to the provider file; the rest of the package stays SDK-free and pure).
+**Wiring:** add `@sentinele2e/ai` to the root `tsconfig` references graph, to `tsconfig.base.json` `paths` (`@sentinele2e/ai` + `@sentinele2e/ai/*`), to `tsconfig.eslint.json` `include`, and as a workspace. **ESLint boundary:** extend the `no-restricted-imports` ban so `@sentinele2e/ai/**` cannot import `@playwright/test`, `playwright`, OR any `@sentinele2e/driver-*` package — the analyzer must stay driver-agnostic. `@anthropic-ai/sdk` is allowed only inside `packages/ai/src/llm/claude-provider.ts` (scope the SDK to the provider file; the rest of the package stays SDK-free and pure).
 
 ---
 
@@ -96,7 +96,7 @@ export interface Verdict {
 ### 3.2 Classification & analysis (`analysis.ts`)
 
 ```ts
-import type { TelemetryEvent } from "@sentinel/core";
+import type { TelemetryEvent } from "@sentinele2e/core";
 
 export type RunOutcome =
   | "success"
@@ -149,7 +149,7 @@ A single run yields a **list** of verdicts (e.g. the real auth-invalid run → `
 ### 5.1 Provider abstraction (`llm/provider.ts`)
 
 ```ts
-import type { TelemetryEvent } from "@sentinel/core";
+import type { TelemetryEvent } from "@sentinele2e/core";
 import type { RunClassification, RunOutcome } from "../analysis";
 import type { Verdict } from "../verdict";
 
@@ -197,7 +197,7 @@ export class FakeLlmProvider implements LlmProvider {
 ## 6. Orchestrator (`analyze.ts`)
 
 ```ts
-import type { TelemetryEvent } from "@sentinel/core";
+import type { TelemetryEvent } from "@sentinele2e/core";
 import type { LlmProvider } from "./llm/provider";
 import type { RunAnalysis } from "./analysis";
 
@@ -251,9 +251,9 @@ Pipeline: **load** (`load.ts`: parse JSONL or accept events; revive bigint timin
 
 ## 11. Acceptance criteria
 
-1. `npm run typecheck` 0 and `npm run lint` 0 with `@sentinel/ai` in the project graph + lint projects.
-2. **Boundary:** `@sentinel/ai/**` imports no driver (`@playwright/test`/`playwright`/`@sentinel/driver-*`) — proven by lint + an import audit; `@anthropic-ai/sdk` appears only in `llm/claude-provider.ts`.
-3. `npm run test:unit` green including all new `@sentinel/ai` tests (rules per-verdict, orchestrator, redaction, e2e on the real JSONL) — all offline, zero API.
+1. `npm run typecheck` 0 and `npm run lint` 0 with `@sentinele2e/ai` in the project graph + lint projects.
+2. **Boundary:** `@sentinele2e/ai/**` imports no driver (`@playwright/test`/`playwright`/`@sentinele2e/driver-*`) — proven by lint + an import audit; `@anthropic-ai/sdk` appears only in `llm/claude-provider.ts`.
+3. `npm run test:unit` green including all new `@sentinele2e/ai` tests (rules per-verdict, orchestrator, redaction, e2e on the real JSONL) — all offline, zero API.
 4. The opt-in Claude integration test passes when `ANTHROPIC_API_KEY` is set (and is cleanly skipped without it), and demonstrates prompt caching.
 5. `analyzeRun` with no key returns a complete rules-only `RunAnalysis` (verdicts + `llmError`, `usedLlm:false`).
 6. `sentinel-analyze <jsonl>` prints a readable analysis and exits non-zero only on a `real-bug` verdict.
@@ -262,7 +262,7 @@ Pipeline: **load** (`load.ts`: parse JSONL or accept events; revive bigint timin
 
 ## 12. Ordered implementation sub-steps (non-normative)
 
-1. **B1 — package skeleton + wiring.** `packages/ai` workspace (`package.json` incl. `@anthropic-ai/sdk` + `@sentinel/core`/`contracts`; composite `tsconfig`); add to root tsconfig references, `tsconfig.base.json` paths, `tsconfig.eslint.json` include; extend the ESLint `no-restricted-imports` ban (no drivers in `@sentinel/ai`). Acceptance: `tsc -b` + lint green on an `export {}` skeleton.
+1. **B1 — package skeleton + wiring.** `packages/ai` workspace (`package.json` incl. `@anthropic-ai/sdk` + `@sentinele2e/core`/`contracts`; composite `tsconfig`); add to root tsconfig references, `tsconfig.base.json` paths, `tsconfig.eslint.json` include; extend the ESLint `no-restricted-imports` ban (no drivers in `@sentinele2e/ai`). Acceptance: `tsc -b` + lint green on an `export {}` skeleton.
 2. **B2 — types + load + redact.** `verdict.ts`, `analysis.ts`, `load.ts` (JSONL parse + bigint revive + schemaVersion guard), `redact.ts`; unit tests for load (malformed line, bigint) + redact (planted secret).
 3. **B3 — deterministic classifier.** `classify/rules.ts` + exhaustive per-verdict unit tests.
 4. **B4 — provider interface + orchestrator.** `llm/provider.ts` (interface + `FakeLlmProvider`); `analyze.ts` (rules + provider resolution + merge + graceful no-key/error); orchestrator tests with the fake.

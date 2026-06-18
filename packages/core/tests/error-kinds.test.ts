@@ -10,7 +10,7 @@ import {
   isSystemFailure,
   SystemFailureError,
   type SystemFailureContext,
-} from "@sentinel/core";
+} from "@sentinele2e/core";
 
 const ctx: SystemFailureContext = {
   correlationId: "run-1",

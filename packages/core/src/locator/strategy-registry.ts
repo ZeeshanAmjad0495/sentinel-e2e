@@ -1,5 +1,5 @@
 // packages/core/src/locator/strategy-registry.ts
-import type { StrategyKind } from "@sentinel/contracts";
+import type { StrategyKind } from "@sentinele2e/contracts";
 
 export interface StrategyMeta {
   readonly rank: number;

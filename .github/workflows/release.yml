@@ -39,7 +39,7 @@ jobs:
         run: |
           mkdir -p release-tarballs
           for p in contracts core driver-playwright driver-selenium ai cli; do
-            npm pack -w @sentinel/$p --pack-destination release-tarballs
+            npm pack -w @sentinele2e/$p --pack-destination release-tarballs
           done
           ls -1 release-tarballs
 
@@ -57,5 +57,5 @@ jobs:
         run: |
           # Dependency order: contracts -> core -> drivers/ai -> cli.
           for p in contracts core driver-playwright driver-selenium ai cli; do
-            npm publish -w @sentinel/$p --access public --provenance
+            npm publish -w @sentinele2e/$p --access public --provenance
           done

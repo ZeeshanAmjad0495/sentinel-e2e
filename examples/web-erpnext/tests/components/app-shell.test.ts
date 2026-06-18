@@ -2,7 +2,7 @@
 import { test, expect } from "@playwright/test";
 import { AppShell } from "../../src/components/auth/app-shell";
 import { appShellLocators } from "../../src/domain/auth/locators";
-import type { Locator, ElementState } from "@sentinel/contracts";
+import type { Locator, ElementState } from "@sentinele2e/contracts";
 
 type WaitForCall = { target: Locator; state: ElementState; timeoutMs?: number };
 

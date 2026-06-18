@@ -1,5 +1,5 @@
 // packages/ai/src/llm/provider.ts
-import type { TelemetryEvent } from "@sentinel/core";
+import type { TelemetryEvent } from "@sentinele2e/core";
 import type { RunClassification, RunOutcome } from "../analysis";
 import type { Verdict } from "../verdict";
 

@@ -1,5 +1,5 @@
 // packages/driver-selenium/src/strategy-compiler.ts
-import type { LocatorStrategy } from "@sentinel/contracts";
+import type { LocatorStrategy } from "@sentinele2e/contracts";
 import { By } from "selenium-webdriver";
 
 /**

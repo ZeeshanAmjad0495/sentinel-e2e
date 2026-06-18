@@ -1,11 +1,11 @@
-# @sentinel/driver-playwright
+# @sentinele2e/driver-playwright
 
-The Playwright driver for [Sentinel](https://github.com/ZeeshanAmjad0495/sentinel-e2e). It implements the `@sentinel/contracts` driver/session interface on top of Playwright, compiling Sentinel locator strategies to Playwright selectors and emitting `@sentinel/core` telemetry for every action and assertion. `@playwright/test` is a peer dependency you install alongside it.
+The Playwright driver for [Sentinel](https://github.com/ZeeshanAmjad0495/sentinel-e2e). It implements the `@sentinele2e/contracts` driver/session interface on top of Playwright, compiling Sentinel locator strategies to Playwright selectors and emitting `@sentinele2e/core` telemetry for every action and assertion. `@playwright/test` is a peer dependency you install alongside it.
 
 ## Install
 
 ```sh
-npm install @sentinel/driver-playwright @playwright/test
+npm install @sentinele2e/driver-playwright @playwright/test
 ```
 
 See the [root README](https://github.com/ZeeshanAmjad0495/sentinel-e2e#readme) for the full Sentinel overview.

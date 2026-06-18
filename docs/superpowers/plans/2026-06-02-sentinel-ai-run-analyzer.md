@@ -1,12 +1,12 @@
-# Sentinel Slice B — `@sentinel/ai` Run-Analyzer Implementation Plan
+# Sentinel Slice B — `@sentinele2e/ai` Run-Analyzer Implementation Plan
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Build `@sentinel/ai` — a single-run analyzer that deterministically classifies failures (real-bug / infra-flake / selector-drift) from slice-A telemetry, and uses Claude (`claude-opus-4-8`) to explain runs and adjudicate ambiguous cases, optionally and gracefully.
+**Goal:** Build `@sentinele2e/ai` — a single-run analyzer that deterministically classifies failures (real-bug / infra-flake / selector-drift) from slice-A telemetry, and uses Claude (`claude-opus-4-8`) to explain runs and adjudicate ambiguous cases, optionally and gracefully.
 
 **Architecture:** A new driver-agnostic workspace package. A pure deterministic rule classifier (offline, free, fully unit-tested) produces the verdicts; an `LlmProvider` abstraction (a `FakeLlmProvider` for tests; a real `ClaudeProvider` behind a lazy import, prompt-cached, tool-use) adds explanation + adjudication. `analyzeRun()` orchestrates load → classify → (optional) LLM → merge; a thin CLI renders. No `ANTHROPIC_API_KEY` → complete rules-only analysis.
 
-**Tech Stack:** TypeScript (strict, `noUncheckedIndexedAccess`, CommonJS, ES2022); Playwright Test as the offline unit runner; `@anthropic-ai/sdk@^0.100.1` (`claude-opus-4-8`, prompt caching, tool-use — used only in `llm/claude-provider.ts`); ESLint `no-restricted-imports` bans drivers + Playwright from `@sentinel/ai`.
+**Tech Stack:** TypeScript (strict, `noUncheckedIndexedAccess`, CommonJS, ES2022); Playwright Test as the offline unit runner; `@anthropic-ai/sdk@^0.100.1` (`claude-opus-4-8`, prompt caching, tool-use — used only in `llm/claude-provider.ts`); ESLint `no-restricted-imports` bans drivers + Playwright from `@sentinele2e/ai`.
 
 **Source spec:** `docs/superpowers/specs/2026-06-02-sentinel-ai-run-analyzer-design.md` (single source of truth).
 
@@ -14,8 +14,8 @@
 
 ## Global conventions (apply to every task)
 
-- **Unit-test runner:** Playwright Test, offline. `@sentinel/ai` tests live at `packages/ai/tests/**/*.test.ts`, import `{ test, expect } from "@playwright/test"`, never request the `page` fixture (no browser), and make zero API calls. Run via `npm run test:unit`.
-- **Driver-agnostic boundary:** `packages/ai/src/**` must not import `@playwright/test`, `playwright`, or any `@sentinel/driver-*`. The `@anthropic-ai/sdk` is imported in exactly one file, `src/llm/claude-provider.ts`, reached only via a lazy `import()` so the SDK never loads on the default path.
+- **Unit-test runner:** Playwright Test, offline. `@sentinele2e/ai` tests live at `packages/ai/tests/**/*.test.ts`, import `{ test, expect } from "@playwright/test"`, never request the `page` fixture (no browser), and make zero API calls. Run via `npm run test:unit`.
+- **Driver-agnostic boundary:** `packages/ai/src/**` must not import `@playwright/test`, `playwright`, or any `@sentinele2e/driver-*`. The `@anthropic-ai/sdk` is imported in exactly one file, `src/llm/claude-provider.ts`, reached only via a lazy `import()` so the SDK never loads on the default path.
 - **LLM is optional/graceful:** rules work with no key; the real Claude provider runs only when `ANTHROPIC_API_KEY` is set, and its integration test is key-gated (`process.env.ANTHROPIC_API_KEY ? test : test.skip`).
 - **TDD loop per task:** failing test → confirm the specific failure → minimal implementation → confirm pass → commit. Conventional Commits (scope `ai`, or `repo` for root tooling).
 - **Sub-step order:** B1 → B2 → B3 → B4 → B5 → B6, each verifiable against its acceptance gate before the next.
@@ -24,11 +24,11 @@
 
 > Sub-step B1 — package skeleton + wiring
 
-Create the `@sentinel/ai` workspace and wire it into the build/lint graph with an `export {}` seed, so `tsc -b` and `lint` are green before any real analyzer code lands. This sub-step adds the package manifest + composite tsconfig, registers it in the root references / base paths, extends the ESLint driver-import boundary to cover `packages/ai/**`, and proves the Playwright unit runner still discovers the package via a trivial offline test.
+Create the `@sentinele2e/ai` workspace and wire it into the build/lint graph with an `export {}` seed, so `tsc -b` and `lint` are green before any real analyzer code lands. This sub-step adds the package manifest + composite tsconfig, registers it in the root references / base paths, extends the ESLint driver-import boundary to cover `packages/ai/**`, and proves the Playwright unit runner still discovers the package via a trivial offline test.
 
 ---
 
-### B1 — Task 1: Scaffold the `@sentinel/ai` package manifest + composite tsconfig + seed
+### B1 — Task 1: Scaffold the `@sentinele2e/ai` package manifest + composite tsconfig + seed
 
 **Files:**
 
@@ -41,14 +41,14 @@ Create the `@sentinel/ai` workspace and wire it into the build/lint graph with a
 ```jsonc
 // packages/ai/package.json
 {
-  "name": "@sentinel/ai",
+  "name": "@sentinele2e/ai",
   "version": "0.0.0",
   "private": true,
   "main": "src/index.ts",
   "types": "src/index.ts",
   "dependencies": {
-    "@sentinel/contracts": "*",
-    "@sentinel/core": "*",
+    "@sentinele2e/contracts": "*",
+    "@sentinele2e/core": "*",
     "@anthropic-ai/sdk": "^0.100.1",
   },
 }
@@ -87,13 +87,13 @@ Expected: (no output; exit code 0 — emits packages/ai/dist/index.{js,d.ts})
 - [ ] **Step 5: Commit.**
 
 ```
-Run: git add packages/ai/package.json packages/ai/tsconfig.json packages/ai/src/index.ts && git commit -m "feat(ai): scaffold @sentinel/ai package skeleton"
+Run: git add packages/ai/package.json packages/ai/tsconfig.json packages/ai/src/index.ts && git commit -m "feat(ai): scaffold @sentinele2e/ai package skeleton"
 Expected: commit created (commitlint passes; lint-staged formats the new files)
 ```
 
 ---
 
-### B1 — Task 2: Wire `@sentinel/ai` into the workspace + root build graph
+### B1 — Task 2: Wire `@sentinele2e/ai` into the workspace + root build graph
 
 **Files:**
 
@@ -101,22 +101,22 @@ Expected: commit created (commitlint passes; lint-staged formats the new files)
 - Modify: `/Users/zeeshan.amjad/Documents/sentinel-e2e/tsconfig.json`
 - Modify: `/Users/zeeshan.amjad/Documents/sentinel-e2e/package-lock.json` (regenerated by `npm install`)
 
-- [ ] **Step 1: Add `@sentinel/ai` path aliases to `tsconfig.base.json`.** Insert the two mappings (bare + subpath) immediately after the `@sentinel/contracts/*` entry so the alphabetical grouping is preserved and the analyzer can `import type { TelemetryEvent } from "@sentinel/core"` while being importable as `@sentinel/ai`.
+- [ ] **Step 1: Add `@sentinele2e/ai` path aliases to `tsconfig.base.json`.** Insert the two mappings (bare + subpath) immediately after the `@sentinele2e/contracts/*` entry so the alphabetical grouping is preserved and the analyzer can `import type { TelemetryEvent } from "@sentinele2e/core"` while being importable as `@sentinele2e/ai`.
 
 Replace:
 
 ```jsonc
-      "@sentinel/contracts/*": ["packages/contracts/src/*"],
-      "@sentinel/core": ["packages/core/src/index.ts"],
+      "@sentinele2e/contracts/*": ["packages/contracts/src/*"],
+      "@sentinele2e/core": ["packages/core/src/index.ts"],
 ```
 
 with:
 
 ```jsonc
-      "@sentinel/contracts/*": ["packages/contracts/src/*"],
-      "@sentinel/ai": ["packages/ai/src/index.ts"],
-      "@sentinel/ai/*": ["packages/ai/src/*"],
-      "@sentinel/core": ["packages/core/src/index.ts"],
+      "@sentinele2e/contracts/*": ["packages/contracts/src/*"],
+      "@sentinele2e/ai": ["packages/ai/src/index.ts"],
+      "@sentinele2e/ai/*": ["packages/ai/src/*"],
+      "@sentinele2e/core": ["packages/core/src/index.ts"],
 ```
 
 - [ ] **Step 2: Register the project in the root `tsconfig.json` references.** Insert after the `core` reference (before `driver-playwright`) so `tsc -b` builds contracts → core → ai.
@@ -140,7 +140,7 @@ with:
 
 ```
 Run: npm install
-Expected: "added N packages" (includes @anthropic-ai/sdk@0.100.x); node_modules/@sentinel/ai symlinked to packages/ai; package-lock.json updated; exit 0
+Expected: "added N packages" (includes @anthropic-ai/sdk@0.100.x); node_modules/@sentinele2e/ai symlinked to packages/ai; package-lock.json updated; exit 0
 ```
 
 - [ ] **Step 4: Confirm the SDK resolved to the pinned major/minor.**
@@ -160,7 +160,7 @@ Expected: > tsc -b   (no errors; exit code 0)
 - [ ] **Step 6: Commit.**
 
 ```
-Run: git add tsconfig.base.json tsconfig.json package.json package-lock.json && git commit -m "feat(ai): wire @sentinel/ai into workspace + tsconfig graph"
+Run: git add tsconfig.base.json tsconfig.json package.json package-lock.json && git commit -m "feat(ai): wire @sentinele2e/ai into workspace + tsconfig graph"
 Expected: commit created; typecheck via pre-commit passes
 ```
 
@@ -177,7 +177,7 @@ Expected: commit created; typecheck via pre-commit passes
 
 ```ts
 // packages/ai/src/__lint_probe__.ts
-import "@sentinel/driver-playwright";
+import "@sentinele2e/driver-playwright";
 import "@playwright/test";
 export {};
 ```
@@ -187,19 +187,19 @@ Run: npx eslint packages/ai/src/__lint_probe__.ts
 Expected (RED — bug we are fixing):
   packages/ai/src/__lint_probe__.ts
     2:8  error  '@playwright/test' import is restricted ...
-  (only @playwright/test flagged by the generic block; @sentinel/driver-playwright is NOT yet banned for @sentinel/ai)
+  (only @playwright/test flagged by the generic block; @sentinele2e/driver-playwright is NOT yet banned for @sentinele2e/ai)
 ```
 
-Note: the generic `**/*.ts` block already bans `@playwright/test`/`playwright` everywhere, so line 2 errors today; the gap this task closes is the **`@sentinel/driver-*` ban for `packages/ai/src/**`\*\* (line 1 must also error).
+Note: the generic `**/*.ts` block already bans `@playwright/test`/`playwright` everywhere, so line 2 errors today; the gap this task closes is the **`@sentinele2e/driver-*` ban for `packages/ai/src/**`\*\* (line 1 must also error).
 
-- [ ] **Step 2: Add the AI-source driver-ban block.** Insert it AFTER the generic ban block (the one whose `files: ['**/*.ts']` bans `@playwright/test`/`playwright`) and BEFORE the test-runner exemption block, so the exemption's `packages/**/tests/**` still wins last for AI tests. This block re-states the Playwright bans (a later matching block fully overrides `no-restricted-imports`, so we must repeat them) and adds the `@sentinel/driver-*` pattern.
+- [ ] **Step 2: Add the AI-source driver-ban block.** Insert it AFTER the generic ban block (the one whose `files: ['**/*.ts']` bans `@playwright/test`/`playwright`) and BEFORE the test-runner exemption block, so the exemption's `packages/**/tests/**` still wins last for AI tests. This block re-states the Playwright bans (a later matching block fully overrides `no-restricted-imports`, so we must repeat them) and adds the `@sentinele2e/driver-*` pattern.
 
 Insert immediately before the comment line `// Exemption (last match wins): the driver adapter + all test-runner dirs`:
 
 ```js
   {
-    // DRIVER-AGNOSTIC boundary (slice B): @sentinel/ai analyzer source must
-    // import NO driver — neither Playwright nor any @sentinel/driver-* package.
+    // DRIVER-AGNOSTIC boundary (slice B): @sentinele2e/ai analyzer source must
+    // import NO driver — neither Playwright nor any @sentinele2e/driver-* package.
     // Tests under packages/ai/tests/** keep the test-runner exemption below.
     files: ['packages/ai/src/**/*.ts'],
     rules: {
@@ -210,19 +210,19 @@ Insert immediately before the comment line `// Exemption (last match wins): the 
             {
               name: '@playwright/test',
               message:
-                'Playwright is confined to @sentinel/driver-playwright and test-runner dirs.',
+                'Playwright is confined to @sentinele2e/driver-playwright and test-runner dirs.',
             },
             {
               name: 'playwright',
               message:
-                'Playwright is confined to @sentinel/driver-playwright and test-runner dirs.',
+                'Playwright is confined to @sentinele2e/driver-playwright and test-runner dirs.',
             },
           ],
           patterns: [
             {
-              group: ['@sentinel/driver-*'],
+              group: ['@sentinele2e/driver-*'],
               message:
-                '@sentinel/ai is driver-agnostic: it must import only the telemetry contract (@sentinel/core), never a driver.',
+                '@sentinele2e/ai is driver-agnostic: it must import only the telemetry contract (@sentinele2e/core), never a driver.',
             },
           ],
         },
@@ -236,7 +236,7 @@ Insert immediately before the comment line `// Exemption (last match wins): the 
 ```
 Run: npx eslint packages/ai/src/__lint_probe__.ts
 Expected (both lines now error):
-  1:8  error  '@sentinel/driver-playwright' import is restricted from being used by a pattern. @sentinel/ai is driver-agnostic ...
+  1:8  error  '@sentinele2e/driver-playwright' import is restricted from being used by a pattern. @sentinele2e/ai is driver-agnostic ...
   2:8  error  '@playwright/test' import is restricted ...  Playwright is confined ...
   ✖ 2 problems (2 errors, 0 warnings)
 ```
@@ -265,7 +265,7 @@ Expected: > eslint . --max-warnings=0   (no errors; exit code 0)
 - [ ] **Step 7: Commit** (only the config change; probes are already deleted).
 
 ```
-Run: git add eslint.config.cjs && git commit -m "feat(ai): ban driver imports from @sentinel/ai source (driver-agnostic boundary)"
+Run: git add eslint.config.cjs && git commit -m "feat(ai): ban driver imports from @sentinele2e/ai source (driver-agnostic boundary)"
 Expected: commit created; lint via pre-commit passes
 ```
 
@@ -293,7 +293,7 @@ Only if the above prints a `Parsing error: ... was not found by the project serv
 // packages/ai/tests/skeleton.test.ts
 import { test, expect } from "@playwright/test";
 
-test("@sentinel/ai skeleton package is wired", () => {
+test("@sentinele2e/ai skeleton package is wired", () => {
   expect(1 + 1).toBe(2);
 });
 ```
@@ -303,7 +303,7 @@ test("@sentinel/ai skeleton package is wired", () => {
 ```
 Run: npm run test:unit -- packages/ai/tests/skeleton.test.ts
 Expected: Running 1 test using 1 worker
-  ✓  1 [chromium] › packages/ai/tests/skeleton.test.ts:3:1 › @sentinel/ai skeleton package is wired
+  ✓  1 [chromium] › packages/ai/tests/skeleton.test.ts:3:1 › @sentinele2e/ai skeleton package is wired
   1 passed
 ```
 
@@ -311,13 +311,13 @@ Expected: Running 1 test using 1 worker
 
 ```
 Run: npm run test:unit
-Expected: ... N passed (0 failed) — includes the @sentinel/ai skeleton test; exit code 0
+Expected: ... N passed (0 failed) — includes the @sentinele2e/ai skeleton test; exit code 0
 ```
 
 - [ ] **Step 5: Commit.**
 
 ```
-Run: git add packages/ai/tests/skeleton.test.ts && git commit -m "test(ai): add offline skeleton unit test for @sentinel/ai"
+Run: git add packages/ai/tests/skeleton.test.ts && git commit -m "test(ai): add offline skeleton unit test for @sentinele2e/ai"
 Expected: commit created; pre-commit hooks pass
 ```
 
@@ -341,7 +341,7 @@ Run: npm run lint
 Expected: > eslint . --max-warnings=0   (no errors; exit 0)
 ```
 
-- [ ] **Step 3: Run the full offline unit suite** (B1 acceptance: runner still discovers `@sentinel/ai`).
+- [ ] **Step 3: Run the full offline unit suite** (B1 acceptance: runner still discovers `@sentinele2e/ai`).
 
 ```
 Run: npm run test:unit
@@ -362,7 +362,7 @@ Run: git status --porcelain
 Expected: (empty output — clean tree)
 ```
 
-B1 is complete: `@sentinel/ai` exists as a composite workspace package in the root build + lint graph, the driver-agnostic ESLint boundary is enforced for its source (tests exempt), and the offline Playwright unit runner discovers it — all on an `export {}` seed with `typecheck`/`lint`/`test:unit` green.
+B1 is complete: `@sentinele2e/ai` exists as a composite workspace package in the root build + lint graph, the driver-agnostic ESLint boundary is enforced for its source (tests exempt), and the offline Playwright unit runner discovers it — all on an `export {}` seed with `typecheck`/`lint`/`test:unit` green.
 
 ---
 
@@ -372,13 +372,13 @@ Notes for the assembler / downstream sub-steps, grounded against the repo:
 - `@anthropic-ai/sdk` is **not yet installed** in `node_modules`; the `npm install` in B1 Task 2 fetches it (declared at `^0.100.1`).
 - The repo's ESLint exemption block uses last-match-wins over `packages/**/tests/**`, so the new AI-source ban block must be placed **before** that exemption (B1 Task 3 Step 2) to keep `packages/ai/tests/**` able to import `@playwright/test`.
 - On success, both `tsc -b` and `eslint . --max-warnings=0` emit only the npm banner (no diagnostics, exit 0) — reflected in the `Expected:` lines.
-- The core barrel (`packages/core/src/index.ts` → `./telemetry`) already exports `TelemetryEvent`, which B2+ will consume via the new `@sentinel/ai` path alias.
+- The core barrel (`packages/core/src/index.ts` → `./telemetry`) already exports `TelemetryEvent`, which B2+ will consume via the new `@sentinele2e/ai` path alias.
 
 ---
 
 > Sub-step B2 — types + load + redact
 
-This fragment lands the `@sentinel/ai` type modules (`verdict.ts`, `analysis.ts`) and the offline input utilities (`load.ts`, `redact.ts`) with TDD unit tests under the Playwright unit runner. Every step is copy-pasteable, offline (no browser, no network/API), and ends in a conventional commit scoped `ai`.
+This fragment lands the `@sentinele2e/ai` type modules (`verdict.ts`, `analysis.ts`) and the offline input utilities (`load.ts`, `redact.ts`) with TDD unit tests under the Playwright unit runner. Every step is copy-pasteable, offline (no browser, no network/API), and ends in a conventional commit scoped `ai`.
 
 ---
 
@@ -395,7 +395,7 @@ This fragment lands the `@sentinel/ai` type modules (`verdict.ts`, `analysis.ts`
 ```ts
 // packages/ai/tests/verdict.test.ts
 import { test, expect } from "@playwright/test";
-import type { VerdictKind, Evidence, Verdict } from "@sentinel/ai";
+import type { VerdictKind, Evidence, Verdict } from "@sentinele2e/ai";
 
 test("Verdict types compose into a well-formed rule verdict", () => {
   const evidence: Evidence = {
@@ -439,7 +439,7 @@ Run:
 npm run test:unit -- packages/ai/tests/verdict.test.ts
 ```
 
-Expected: FAIL — `error TS2307: Cannot find module '@sentinel/ai' or its corresponding type declarations.` (the `verdict.ts` source and barrel re-export do not exist yet).
+Expected: FAIL — `error TS2307: Cannot find module '@sentinele2e/ai' or its corresponding type declarations.` (the `verdict.ts` source and barrel re-export do not exist yet).
 
 - [ ] **Step 2: Create `verdict.ts` with the exact spec §3.1 types.**
 
@@ -510,13 +510,13 @@ Expected: `eslint . --max-warnings=0` exits 0; commit succeeds (Husky pre-commit
 ```ts
 // packages/ai/tests/analysis.test.ts
 import { test, expect } from "@playwright/test";
-import { ANALYSIS_SCHEMA_VERSION } from "@sentinel/ai";
+import { ANALYSIS_SCHEMA_VERSION } from "@sentinele2e/ai";
 import type {
   RunOutcome,
   RunClassification,
   RunAnalysis,
   Verdict,
-} from "@sentinel/ai";
+} from "@sentinele2e/ai";
 
 test("ANALYSIS_SCHEMA_VERSION is 1.0.0", () => {
   expect(ANALYSIS_SCHEMA_VERSION).toBe("1.0.0");
@@ -563,13 +563,13 @@ Run:
 npm run test:unit -- packages/ai/tests/analysis.test.ts
 ```
 
-Expected: FAIL — `error TS2305: Module '"@sentinel/ai"' has no exported member 'ANALYSIS_SCHEMA_VERSION'.` (and the `RunOutcome`/`RunClassification`/`RunAnalysis` types are missing).
+Expected: FAIL — `error TS2305: Module '"@sentinele2e/ai"' has no exported member 'ANALYSIS_SCHEMA_VERSION'.` (and the `RunOutcome`/`RunClassification`/`RunAnalysis` types are missing).
 
-- [ ] **Step 2: Create `analysis.ts` with the exact spec §3.2 contents.** Imports `TelemetryEvent` from `@sentinel/core` (referenced by `RunClassification` consumers downstream) and `Verdict` from `./verdict`.
+- [ ] **Step 2: Create `analysis.ts` with the exact spec §3.2 contents.** Imports `TelemetryEvent` from `@sentinele2e/core` (referenced by `RunClassification` consumers downstream) and `Verdict` from `./verdict`.
 
 ```ts
 // packages/ai/src/analysis.ts
-import type { TelemetryEvent } from "@sentinel/core";
+import type { TelemetryEvent } from "@sentinele2e/core";
 import type { Verdict } from "./verdict";
 
 export type RunOutcome =
@@ -599,7 +599,7 @@ export interface RunAnalysis {
   readonly llmError?: string; // set when the LLM was attempted but skipped/failed (graceful)
 }
 
-// `TelemetryEvent` is the consumed input type across the @sentinel/ai pipeline;
+// `TelemetryEvent` is the consumed input type across the @sentinele2e/ai pipeline;
 // re-export it here so downstream modules import it from a single analyzer surface.
 export type { TelemetryEvent };
 ```
@@ -657,7 +657,7 @@ import { writeFileSync, rmSync, existsSync } from "node:fs";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { randomUUID } from "node:crypto";
-import { loadEvents } from "@sentinel/ai";
+import { loadEvents } from "@sentinele2e/ai";
 
 const line = (name: string, seq: number): string =>
   JSON.stringify({
@@ -742,14 +742,14 @@ Run:
 npm run test:unit -- packages/ai/tests/load.test.ts
 ```
 
-Expected: FAIL — `error TS2305: Module '"@sentinel/ai"' has no exported member 'loadEvents'.`
+Expected: FAIL — `error TS2305: Module '"@sentinele2e/ai"' has no exported member 'loadEvents'.`
 
 - [ ] **Step 2: Create `load.ts`.** Note: JSONL revives `startMonotonicNs`/`endMonotonicNs` as strings (not `bigint`), so the parsed records are not structurally assignable to `TelemetryEvent` whose `timing` is `bigint`. We parse into a loose shape and return `TelemetryEvent[]` via a single, documented cast at the boundary — the analyzer performs no ns math (spec §13 Q3).
 
 ```ts
 // packages/ai/src/load.ts
 import { readFileSync } from "node:fs";
-import type { TelemetryEvent } from "@sentinel/core";
+import type { TelemetryEvent } from "@sentinele2e/core";
 
 /** Loosely-typed parse of a JSONL line: timing ns fields stay as strings. */
 interface RawEvent {
@@ -871,8 +871,8 @@ Redaction contract (spec §7): `redactEvents(events): TelemetryEvent[]` — deep
 ```ts
 // packages/ai/tests/redact.test.ts
 import { test, expect } from "@playwright/test";
-import { redactEvents } from "@sentinel/ai";
-import type { TelemetryEvent } from "@sentinel/ai";
+import { redactEvents } from "@sentinele2e/ai";
+import type { TelemetryEvent } from "@sentinele2e/ai";
 
 const baseEvent = (
   attributes: Readonly<Record<string, string | number | boolean>>,
@@ -943,13 +943,13 @@ Run:
 npm run test:unit -- packages/ai/tests/redact.test.ts
 ```
 
-Expected: FAIL — `error TS2305: Module '"@sentinel/ai"' has no exported member 'redactEvents'.`
+Expected: FAIL — `error TS2305: Module '"@sentinele2e/ai"' has no exported member 'redactEvents'.`
 
 - [ ] **Step 2: Create `redact.ts`.** Recursively deep-clones and rewrites any key matching the secret pattern; preserves arrays and nested objects.
 
 ```ts
 // packages/ai/src/redact.ts
-import type { TelemetryEvent } from "@sentinel/core";
+import type { TelemetryEvent } from "@sentinele2e/core";
 
 const SECRET_KEY =
   /pass(word)?|secret|token|api[-_]?key|authorization|cookie|credential/i;
@@ -1013,7 +1013,7 @@ Expected: `tsc -b` exits 0; Playwright prints `3 passed`.
 npm run typecheck && npm run lint && npm run test:unit
 ```
 
-Expected: `tsc -b` exits 0; `eslint . --max-warnings=0` exits 0; Playwright reports all `@sentinel/ai` tests passing (`verdict` 2, `analysis` 2, `load` 4, `redact` 3) alongside the existing suites — all offline, zero API.
+Expected: `tsc -b` exits 0; `eslint . --max-warnings=0` exits 0; Playwright reports all `@sentinele2e/ai` tests passing (`verdict` 2, `analysis` 2, `load` 4, `redact` 3) alongside the existing suites — all offline, zero API.
 
 ```
 git add packages/ai/src/redact.ts packages/ai/src/index.ts packages/ai/tests/redact.test.ts
@@ -1026,11 +1026,11 @@ Expected: lint exits 0; commit succeeds.
 
 Grounding notes that shaped the tasks (verified against the repo, not just the spec):
 
-- `TelemetryEvent` is exported (type-only) from `@sentinel/core` via `packages/core/src/telemetry/index.ts` → spec §3.2 import `import type { TelemetryEvent } from "@sentinel/core"` resolves. `analysis.ts` re-exports it so `redact.test.ts`/downstream import from `@sentinel/ai`.
+- `TelemetryEvent` is exported (type-only) from `@sentinele2e/core` via `packages/core/src/telemetry/index.ts` → spec §3.2 import `import type { TelemetryEvent } from "@sentinele2e/core"` resolves. `analysis.ts` re-exports it so `redact.test.ts`/downstream import from `@sentinele2e/ai`.
 - `noUncheckedIndexedAccess` is on, so all test index access uses `?.` / non-null `!` exactly as existing core tests do (`packages/core/tests/jsonl-sink.test.ts`).
 - `JsonlSink` serializes `timing.startMonotonicNs`/`endMonotonicNs` as decimal **strings** (`packages/core/tests/jsonl-sink.test.ts` asserts `"5000000"`). Since the `Timing` type declares those `bigint`, the parsed JSONL is not structurally a `TelemetryEvent`; `load.ts` returns via one documented boundary cast (`as unknown as TelemetryEvent[]`) and keeps them as strings per spec §13 Q3 (no bigint revive). The load test asserts `typeof === "string"`.
 - Tests import `{ test, expect } from "@playwright/test"`, never request the `page` fixture (pure/offline), and use `tmpdir()` + `randomUUID()` per the existing `jsonl-sink.test.ts` pattern; `playwright.unit.config.ts` `testMatch` already includes `packages/**/tests/**/*.test.ts`.
-- This fragment assumes B1 created `packages/ai/{package.json,tsconfig.json}`, the barrel `src/index.ts` (as `export {}`), wired `tsconfig.base.json` paths (`@sentinel/ai` + `@sentinel/ai/*`), root tsconfig references, `tsconfig.eslint.json` include, and the workspace; and extended the eslint `no-restricted-imports` ban to forbid `@sentinel/driver-*` from `packages/ai/**` while keeping the `packages/**/tests/**` exemption. B2 only adds `src/{verdict,analysis,load,redact}.ts`, their tests, and barrel re-export lines — it does not modify `package.json` or `eslint.config.cjs`.
+- This fragment assumes B1 created `packages/ai/{package.json,tsconfig.json}`, the barrel `src/index.ts` (as `export {}`), wired `tsconfig.base.json` paths (`@sentinele2e/ai` + `@sentinele2e/ai/*`), root tsconfig references, `tsconfig.eslint.json` include, and the workspace; and extended the eslint `no-restricted-imports` ban to forbid `@sentinele2e/driver-*` from `packages/ai/**` while keeping the `packages/**/tests/**` exemption. B2 only adds `src/{verdict,analysis,load,redact}.ts`, their tests, and barrel re-export lines — it does not modify `package.json` or `eslint.config.cjs`.
 
 ---
 
@@ -1053,7 +1053,7 @@ This task creates the synthetic-`TelemetryEvent` factory helpers used by every l
 ```ts
 // packages/ai/tests/rules.test.ts
 import { test, expect } from "@playwright/test";
-import { classify } from "@sentinel/ai";
+import { classify } from "@sentinele2e/ai";
 import type {
   TelemetryEvent,
   LocatorResolvedEvent,
@@ -1062,8 +1062,8 @@ import type {
   BusinessFailureEvent,
   SystemFailureEvent,
   FlowFinishedEvent,
-} from "@sentinel/core";
-import { TELEMETRY_SCHEMA_VERSION } from "@sentinel/core";
+} from "@sentinele2e/core";
+import { TELEMETRY_SCHEMA_VERSION } from "@sentinele2e/core";
 
 let seq = 0;
 const base = <T extends TelemetryEvent["type"]>(type: T, name: string) => ({
@@ -1179,10 +1179,10 @@ Run:
 npm run test:unit -- packages/ai/tests/rules.test.ts
 ```
 
-Expected: the run fails at module load with a missing-export/transpile error referencing `classify` not being exported from `@sentinel/ai`, e.g. a line containing:
+Expected: the run fails at module load with a missing-export/transpile error referencing `classify` not being exported from `@sentinele2e/ai`, e.g. a line containing:
 
 ```
-The requested module '@sentinel/ai' does not provide an export named 'classify'
+The requested module '@sentinele2e/ai' does not provide an export named 'classify'
 ```
 
 (0 tests passed.)
@@ -1217,7 +1217,7 @@ import type {
   TelemetryEvent,
   LocatorResolvedEvent,
   FlowFinishedEvent,
-} from "@sentinel/core";
+} from "@sentinele2e/core";
 import type { RunClassification, RunOutcome } from "../analysis";
 import type { Verdict, Evidence } from "../verdict";
 
@@ -1416,7 +1416,7 @@ import type {
   LocatorResolvedEvent,
   FlowFinishedEvent,
   SystemFailureEvent,
-} from "@sentinel/core";
+} from "@sentinele2e/core";
 ```
 
 Add this helper just below `driftEvidence`:
@@ -1561,7 +1561,7 @@ import type {
   SystemFailureEvent,
   AssertionEvent,
   RetryEvent,
-} from "@sentinel/core";
+} from "@sentinele2e/core";
 ```
 
 Add this helper below `failureEvidence`:
@@ -1987,7 +1987,7 @@ import type {
   AssertionEvent,
   RetryEvent,
   BusinessFailureEvent,
-} from "@sentinel/core";
+} from "@sentinele2e/core";
 ```
 
 Add an evidence helper (below `retryEvidence`):
@@ -2279,7 +2279,7 @@ Run:
 npm run typecheck && npm run lint && npm run test:unit
 ```
 
-Expected: `typecheck` exits 0; `lint` exits 0 (the `@sentinel/ai` boundary holds — `rules.ts` imports only `@sentinel/core` + local types, no driver, no SDK); the full unit suite reports `passed` with no failures, including the 12 `rules.test.ts` cases.
+Expected: `typecheck` exits 0; `lint` exits 0 (the `@sentinele2e/ai` boundary holds — `rules.ts` imports only `@sentinele2e/core` + local types, no driver, no SDK); the full unit suite reports `passed` with no failures, including the 12 `rules.test.ts` cases.
 
 - [ ] **Step 4: Commit.**
 
@@ -2295,7 +2295,7 @@ Expected: a commit is created.
 
 Findings relevant to the assembler / later sub-steps:
 
-- Grounded the classifier against the real telemetry types in `/Users/zeeshan.amjad/Documents/sentinel-e2e/packages/core/src/telemetry/signals.ts` and `.../telemetry/event.ts`: the `TelemetryEvent` union members (`LocatorResolvedEvent`, `AssertionEvent`, `RetryEvent`, `BusinessFailureEvent`, `SystemFailureEvent`, `FlowFinishedEvent`) are exported from `@sentinel/core` (barrel re-exports `./telemetry`), so the test factories and `rules.ts` import all event types and `TELEMETRY_SCHEMA_VERSION` directly from `@sentinel/core`.
+- Grounded the classifier against the real telemetry types in `/Users/zeeshan.amjad/Documents/sentinel-e2e/packages/core/src/telemetry/signals.ts` and `.../telemetry/event.ts`: the `TelemetryEvent` union members (`LocatorResolvedEvent`, `AssertionEvent`, `RetryEvent`, `BusinessFailureEvent`, `SystemFailureEvent`, `FlowFinishedEvent`) are exported from `@sentinele2e/core` (barrel re-exports `./telemetry`), so the test factories and `rules.ts` import all event types and `TELEMETRY_SCHEMA_VERSION` directly from `@sentinele2e/core`.
 - `SystemFailureKind` (`/Users/zeeshan.amjad/Documents/sentinel-e2e/packages/core/src/errors/system-failure-error.ts`) values used in tasks: `timeout | selector-not-found | selector-ambiguous | driver-session | assertion-infrastructure | capability-unsupported` — matching the §4 rules exactly.
 - `BranchProgress` (`/Users/zeeshan.amjad/Documents/sentinel-e2e/packages/contracts/src/assertion.ts`) is `{ label; reachedState: ElementState | "none"; resolvedRank: number | null }`. `AssertionEvent.branchProgress` carries it, so the §4.3 attached-not-visible signal is read from the assertion's `branchProgress` and tied to the timeout `system.failure` by shared `spanId`.
 - Test convention confirmed from `/Users/zeeshan.amjad/Documents/sentinel-e2e/packages/core/tests/composite-sink.test.ts` and `playwright.unit.config.ts` (testMatch `packages/**/tests/**/*.test.ts`): `import { test, expect } from "@playwright/test"`, no `page` fixture used — tasks comply (pure/offline).
@@ -2380,7 +2380,7 @@ Expected: fails to compile / run — `Cannot find module '../src/llm/provider'` 
 
 ```ts
 // packages/ai/src/llm/provider.ts
-import type { TelemetryEvent } from "@sentinel/core";
+import type { TelemetryEvent } from "@sentinele2e/core";
 import type { RunClassification, RunOutcome } from "../analysis";
 import type { Verdict } from "../verdict";
 
@@ -2421,14 +2421,14 @@ Run:
 npm run typecheck
 ```
 
-Expected: exits `0` (the new file type-checks against `@sentinel/core`, `../analysis`, `../verdict` from B2).
+Expected: exits `0` (the new file type-checks against `@sentinele2e/core`, `../analysis`, `../verdict` from B2).
 
 - [ ] **Step 3: Create the SDK-free barrel `llm/index.ts` (re-export interface + Fake; NOT the claude provider).**
 
 ```ts
 // packages/ai/src/llm/index.ts
 // SDK-free barrel: re-exports ONLY the provider interface + the test fake.
-// claude-provider.ts is deliberately NOT re-exported so importing @sentinel/ai
+// claude-provider.ts is deliberately NOT re-exported so importing @sentinele2e/ai
 // never pulls @anthropic-ai/sdk into the deterministic import path.
 export type {
   AnalysisContext,
@@ -2470,7 +2470,7 @@ Expected: commit created; pre-commit lint-staged + commit-msg commitlint pass (l
 ```ts
 // packages/ai/tests/analyze.test.ts
 import { test, expect } from "@playwright/test";
-import type { TelemetryEvent } from "@sentinel/core";
+import type { TelemetryEvent } from "@sentinele2e/core";
 import { analyzeRun } from "../src/analyze";
 import { ANALYSIS_SCHEMA_VERSION } from "../src/analysis";
 
@@ -2538,7 +2538,7 @@ Expected: fails — `Cannot find module '../src/analyze'`.
 
 ```ts
 // packages/ai/src/analyze.ts
-import type { TelemetryEvent } from "@sentinel/core";
+import type { TelemetryEvent } from "@sentinele2e/core";
 import type { LlmProvider } from "./llm/provider";
 import { ANALYSIS_SCHEMA_VERSION, type RunAnalysis } from "./analysis";
 import { loadEvents } from "./load";
@@ -2700,7 +2700,7 @@ Replace the entire body of `packages/ai/src/analyze.ts` with:
 
 ```ts
 // packages/ai/src/analyze.ts
-import type { TelemetryEvent } from "@sentinel/core";
+import type { TelemetryEvent } from "@sentinele2e/core";
 import type { AnalysisContext, LlmProvider } from "./llm/provider";
 import {
   ANALYSIS_SCHEMA_VERSION,
@@ -2723,7 +2723,7 @@ export interface AnalyzeOptions {
  *   - explicit provider (incl. a fake) wins;
  *   - null forces rules-only;
  *   - undefined => auto: a ClaudeProvider IFF ANTHROPIC_API_KEY is set, else none.
- * The claude provider is imported LAZILY so importing @sentinel/ai never pulls
+ * The claude provider is imported LAZILY so importing @sentinele2e/ai never pulls
  * @anthropic-ai/sdk into the deterministic path.
  */
 async function resolveProvider(
@@ -2953,7 +2953,7 @@ Run:
 npm run typecheck
 ```
 
-Expected: exits `0` (no errors across `@sentinel/ai` and references).
+Expected: exits `0` (no errors across `@sentinele2e/ai` and references).
 
 - [ ] **Step 2: Lint — confirm the driver/`@playwright/test` boundary holds for the new src files.**
 
@@ -2963,7 +2963,7 @@ Run:
 npm run lint
 ```
 
-Expected: exits `0`. `analyze.ts`, `llm/provider.ts`, and `llm/index.ts` import only `@sentinel/core` + intra-package relative paths (no `@playwright/test`, no `playwright`, no `@sentinel/driver-*`); the `no-restricted-imports` boundary is not tripped. `tests/**` retains the test-runner exemption.
+Expected: exits `0`. `analyze.ts`, `llm/provider.ts`, and `llm/index.ts` import only `@sentinele2e/core` + intra-package relative paths (no `@playwright/test`, no `playwright`, no `@sentinele2e/driver-*`); the `no-restricted-imports` boundary is not tripped. `tests/**` retains the test-runner exemption.
 
 - [ ] **Step 3: Run the entire offline unit suite (no browser, no API).**
 
@@ -2991,7 +2991,7 @@ git commit -m "chore(ai): b4 sub-step gate — typecheck, lint, unit suite green
 
 Authored the complete B4 fragment (5 TDD tasks) for `packages/ai/src/llm/provider.ts` + `llm/index.ts` + `analyze.ts`, copied from spec §5.1 / §6 verbatim. Key grounding decisions baked into the fragment, surfaced here for the assembler:
 
-- `TelemetryEvent` is re-exported from the `@sentinel/core` barrel (verified in `packages/core/src/index.ts` → `telemetry/index.ts`), so the spec's `import type { TelemetryEvent } from "@sentinel/core"` resolves as written.
+- `TelemetryEvent` is re-exported from the `@sentinele2e/core` barrel (verified in `packages/core/src/index.ts` → `telemetry/index.ts`), so the spec's `import type { TelemetryEvent } from "@sentinele2e/core"` resolves as written.
 - Tests import `{ test, expect } from "@playwright/test"` and use relative `../src/...` imports (matching every existing `packages/**/tests/*.test.ts`); they are pure/offline and never request the `page` fixture.
 - One cross-slice dependency flagged in B4-Task 3 Step 3: the spec-mandated lazy `await import("./llm/claude-provider")` is a forward reference to a B5 file. The offline orchestrator tests never execute it (explicit provider or `null`, no key in CI), but `tsc -b` needs the module to exist — so if B5 lands after B4 in the build order, Task 3 Step 3 supplies a throwaway compile stub that B5 overwrites. This is the only ordering coupling and is called out explicitly.
 - The orchestrator never throws on LLM failure: provider rejection and lazy-import/construction failure both route through a `try/catch` that returns rules-only `RunAnalysis` with `llmError`; the absent-key-with-explain auto path sets `llmError: "no ANTHROPIC_API_KEY; rules-only"` exactly as spec §6 dictates.
@@ -3018,13 +3018,13 @@ Create `packages/ai/tests/redact-send.test.ts`:
 
 ```ts
 import { test, expect } from "@playwright/test";
-import type { TelemetryEvent } from "@sentinel/core";
-import { analyzeRun } from "@sentinel/ai/analyze";
+import type { TelemetryEvent } from "@sentinele2e/core";
+import { analyzeRun } from "@sentinele2e/ai/analyze";
 import type {
   AnalysisContext,
   LlmProvider,
   LlmRunResult,
-} from "@sentinel/ai/llm/provider";
+} from "@sentinele2e/ai/llm/provider";
 
 /** A spy provider: records the events it was handed, returns a canned result. */
 class SpyLlmProvider implements LlmProvider {
@@ -3154,7 +3154,10 @@ Create `packages/ai/tests/claude-provider.test.ts`:
 
 ```ts
 import { test, expect } from "@playwright/test";
-import { ClaudeProvider, CLAUDE_MODEL } from "@sentinel/ai/llm/claude-provider";
+import {
+  ClaudeProvider,
+  CLAUDE_MODEL,
+} from "@sentinele2e/ai/llm/claude-provider";
 
 test("ClaudeProvider pins claude-opus-4-8 and constructs from an explicit key", () => {
   expect(CLAUDE_MODEL).toBe("claude-opus-4-8");
@@ -3179,7 +3182,7 @@ Run:
 npm run test:unit -- packages/ai/tests/claude-provider.test.ts
 ```
 
-Expected: FAILS to resolve the module — `Cannot find module '@sentinel/ai/llm/claude-provider'` (the file does not exist yet).
+Expected: FAILS to resolve the module — `Cannot find module '@sentinele2e/ai/llm/claude-provider'` (the file does not exist yet).
 
 - [ ] **Step 3: Create the provider with the cached system prompt and a stub `analyze`.**
 
@@ -3518,14 +3521,14 @@ The `analyze()` method returns only `LlmRunResult`, so to assert cache usage the
 
 ```ts
 import Anthropic from "@anthropic-ai/sdk";
-import type { TelemetryEvent } from "@sentinel/core";
-import type { AnalysisContext } from "@sentinel/ai/llm/provider";
+import type { TelemetryEvent } from "@sentinele2e/core";
+import type { AnalysisContext } from "@sentinele2e/ai/llm/provider";
 import {
   SYSTEM_PROMPT,
   CLAUDE_MODEL,
   REPORT_TOOL_NAME,
   REPORT_TOOL_INPUT_SCHEMA,
-} from "@sentinel/ai/llm/claude-provider";
+} from "@sentinele2e/ai/llm/claude-provider";
 
 const runItest = process.env.ANTHROPIC_API_KEY ? test : test.skip;
 
@@ -3575,7 +3578,8 @@ function sampleContext(): AnalysisContext {
 runItest(
   "real ClaudeProvider returns a well-formed result and uses prompt caching",
   async () => {
-    const { ClaudeProvider } = await import("@sentinel/ai/llm/claude-provider");
+    const { ClaudeProvider } =
+      await import("@sentinele2e/ai/llm/claude-provider");
     const provider = new ClaudeProvider({ maxTokens: 512 });
 
     const result = await provider.analyze(sampleContext());
@@ -3653,7 +3657,7 @@ Authoring notes (grounding facts the implementing engineer must keep):
 
 - Verified telemetry shape at `packages/core/src/telemetry/{event,signals}.ts` and `SystemFailureKind` at `packages/core/src/errors/system-failure-error.ts` (`timeout | selector-not-found | selector-ambiguous | driver-session | assertion-infrastructure`) — the synthetic events in the tests use only real fields. `startMonotonicNs` is a `bigint` in the type but arrives as a string in JSONL; tests pass it as a string cast through `as unknown as TelemetryEvent`, matching B2's load/revive decision.
 - The unit runner config `playwright.unit.config.ts` `testMatch` is `packages/**/tests/**/*.test.ts` only — a `claude-provider.itest.ts` would not be collected, so the integration test lives in `claude-provider.test.ts` guarded by `process.env.ANTHROPIC_API_KEY ? test : test.skip`.
-- The eslint exemption block already covers `packages/**/tests/**` (`no-restricted-imports: off`), so test files may import `@playwright/test` and `@anthropic-ai/sdk`. B1 must (a) add `@anthropic-ai/sdk` to the `packages/ai/**` driver-ban allowance for `src/llm/claude-provider.ts` only, and (b) ban `@sentinel/driver-*` from `packages/ai/**` — neither touches the SDK import in the provider file. The import-audit assertion (SDK appears only in `claude-provider.ts`) is owned by B6 per the global conventions.
+- The eslint exemption block already covers `packages/**/tests/**` (`no-restricted-imports: off`), so test files may import `@playwright/test` and `@anthropic-ai/sdk`. B1 must (a) add `@anthropic-ai/sdk` to the `packages/ai/**` driver-ban allowance for `src/llm/claude-provider.ts` only, and (b) ban `@sentinele2e/driver-*` from `packages/ai/**` — neither touches the SDK import in the provider file. The import-audit assertion (SDK appears only in `claude-provider.ts`) is owned by B6 per the global conventions.
 - SDK call shape verified against the `claude-api` skill (TS Claude API + tool-use docs): `client.messages.create({ model, max_tokens, system:[{type:"text",text,cache_control:{type:"ephemeral"}}], messages, tools:[{name,description,input_schema}], tool_choice:{type:"tool",name} })`, read the `tool_use` block via `response.content.find(b => b.type==="tool_use")`, and `response.usage.cache_creation_input_tokens` / `cache_read_input_tokens`. The skill's default model is `claude-opus-4-7`, but spec D-3 locks `claude-opus-4-8` — the spec wins. Re-confirm `Anthropic.Tool.InputSchema` / `Anthropic.ToolUseBlock` type paths against `@anthropic-ai/sdk@^0.100.1` at implement-time (runtime shape is stable; only the TS type-path annotation might drift).
 
 ---
@@ -4137,7 +4141,7 @@ Expected: `tsc -b` exits 0; commit created.
 - Modify: `package.json` (root — add `analyze` script)
 - Modify: `packages/ai/package.json` (add `bin`)
 
-Decision (stated): the repo has no `tsx`/`ts-node`, and every package's `main` points at raw `src/index.ts` (only Playwright's loader executes TS). The simplest working approach is to **compile** `@sentinel/ai` with `tsc -b` (already configured in B1 with `outDir: dist`) and run the emitted JS. So `analyze` = `tsc -b` then `node packages/ai/dist/cli.js`.
+Decision (stated): the repo has no `tsx`/`ts-node`, and every package's `main` points at raw `src/index.ts` (only Playwright's loader executes TS). The simplest working approach is to **compile** `@sentinele2e/ai` with `tsc -b` (already configured in B1 with `outDir: dist`) and run the emitted JS. So `analyze` = `tsc -b` then `node packages/ai/dist/cli.js`.
 
 - [ ] **Step 1: Add the root `analyze` script.** Edit root `package.json` `scripts`, inserting after the `"typecheck"` line:
 
@@ -4154,7 +4158,7 @@ Decision (stated): the repo has no `tsx`/`ts-node`, and every package's `main` p
   },
 ```
 
-> Keep the surrounding B1 fields intact (`name: "@sentinel/ai"`, `main`/`types` at `src/index.ts`, `dependencies` incl. `@anthropic-ai/sdk`/`@sentinel/core`/`@sentinel/contracts`). Only the `bin` key is added.
+> Keep the surrounding B1 fields intact (`name: "@sentinele2e/ai"`, `main`/`types` at `src/index.ts`, `dependencies` incl. `@anthropic-ai/sdk`/`@sentinele2e/core`/`@sentinele2e/contracts`). Only the `bin` key is added.
 
 - [ ] **Step 3: Build then run the CLI end-to-end on the fixture (proves the compiled entry + exit code).**
 
@@ -4226,7 +4230,7 @@ Run:
 npm run lint
 ```
 
-Expected: exits 0 (no `no-restricted-imports` violations; the B1 lint extension bans `@sentinel/driver-*` from `packages/ai/**` and the SDK ban scoping holds).
+Expected: exits 0 (no `no-restricted-imports` violations; the B1 lint extension bans `@sentinele2e/driver-*` from `packages/ai/**` and the SDK ban scoping holds).
 
 - [ ] **Step 3: Import audit — SDK confined to the provider (§11.2).**
 
@@ -4247,7 +4251,7 @@ packages/ai/src/llm/claude-provider.ts:1:import Anthropic from "@anthropic-ai/sd
 Run:
 
 ```
-grep -rn "@playwright/test\|@sentinel/driver" packages/ai/src; echo "exit=$?"
+grep -rn "@playwright/test\|@sentinele2e/driver" packages/ai/src; echo "exit=$?"
 ```
 
 Expected: no matches, `exit=1` (grep found nothing).

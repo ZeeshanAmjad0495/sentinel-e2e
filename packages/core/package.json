@@ -1,5 +1,5 @@
 {
-  "name": "@sentinel/core",
+  "name": "@sentinele2e/core",
   "version": "0.1.0",
   "type": "commonjs",
   "main": "dist/index.js",
@@ -26,6 +26,6 @@
     "access": "public"
   },
   "dependencies": {
-    "@sentinel/contracts": "^0.1.0"
+    "@sentinele2e/contracts": "^0.1.0"
   }
 }

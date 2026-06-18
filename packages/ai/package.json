@@ -1,5 +1,5 @@
 {
-  "name": "@sentinel/ai",
+  "name": "@sentinele2e/ai",
   "version": "0.1.0",
   "type": "commonjs",
   "main": "dist/index.js",
@@ -29,7 +29,7 @@
     "access": "public"
   },
   "dependencies": {
-    "@sentinel/core": "^0.1.0",
+    "@sentinele2e/core": "^0.1.0",
     "@anthropic-ai/sdk": "^0.100.1"
   }
 }

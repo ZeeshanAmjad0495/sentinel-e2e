@@ -3,19 +3,19 @@
 - **Status:** Approved (lean spec — CLI surface; decisions documented inline)
 - **Date:** 2026-06-10
 - **Branch:** `main` (no PRs; push each green phase)
-- **Scope:** A unified `@sentinel/cli` package exposing a single `sentinel` binary with `init`, `run`, `analyze`, and `report` — the operator entry point. Driver-agnostic (depends only on `@sentinel/ai` + `@sentinel/core`/`@sentinel/contracts`; it shells out to the project's test runner for `run`). Offline-testable; `npm pack`-ready (slice-D conventions).
+- **Scope:** A unified `@sentinele2e/cli` package exposing a single `sentinel` binary with `init`, `run`, `analyze`, and `report` — the operator entry point. Driver-agnostic (depends only on `@sentinele2e/ai` + `@sentinele2e/core`/`@sentinele2e/contracts`; it shells out to the project's test runner for `run`). Offline-testable; `npm pack`-ready (slice-D conventions).
 
 ---
 
 ## 0. Locked decisions
 
-| #   | Decision                                                        | Rationale                                                                                                                                                                                                                                                                                                                                                                                                     |
-| --- | --------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| E-1 | **New package `@sentinel/cli`, bin `sentinel`**                 | One operator entry point. `@sentinel/ai` keeps its `sentinel-analyze` bin (back-compat); `sentinel analyze` is the unified alias that delegates to the same code.                                                                                                                                                                                                                                             |
-| E-2 | **Driver-agnostic CLI**                                         | `@sentinel/cli` imports `@sentinel/ai` (analyze/report) + core/contracts only — NO driver. `run` shells out to the project's runner (`npx playwright test`), so the CLI never imports a driver; the user's project owns the driver. Lint boundary bans driver imports from `@sentinel/cli` (mirrors `@sentinel/ai`).                                                                                          |
-| E-3 | **Config = `sentinel.config.json`** (not `.ts`)                 | The standalone `node dist/cli.js` bin can't load TS without a loader. JSON is loadable everywhere. Fields: `telemetryDir` (default `test-results/telemetry`), `testDir` (default `tests`), `runner` (default `playwright`), `playwrightConfig` (path). Missing config → sensible defaults; no config file required for `analyze`/`report`.                                                                    |
-| E-4 | **Hand-rolled arg parsing (zero deps)**                         | A tiny dispatcher (`sentinel <command> [args] [--flags]`) — no `commander`/`yargs` dependency, keeping the package lean and the install light.                                                                                                                                                                                                                                                                |
-| E-5 | **`report` aggregates the telemetry dir → a cross-run summary** | Reads every `*.jsonl` in `telemetryDir`, classifies each run via `@sentinel/ai` `analyzeRun(..., {provider:null})`, and aggregates: per-run outcome + verdict counts (real-bug / infra-flake / selector-drift / business-outcome / healthy), the set of drifting `logicalName`s, and which runs contain real bugs. This is the **data layer the slice-F dashboard will render** — same JSON shape feeds both. |
+| #   | Decision                                                        | Rationale                                                                                                                                                                                                                                                                                                                                                                                                        |
+| --- | --------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| E-1 | **New package `@sentinele2e/cli`, bin `sentinel`**              | One operator entry point. `@sentinele2e/ai` keeps its `sentinel-analyze` bin (back-compat); `sentinel analyze` is the unified alias that delegates to the same code.                                                                                                                                                                                                                                             |
+| E-2 | **Driver-agnostic CLI**                                         | `@sentinele2e/cli` imports `@sentinele2e/ai` (analyze/report) + core/contracts only — NO driver. `run` shells out to the project's runner (`npx playwright test`), so the CLI never imports a driver; the user's project owns the driver. Lint boundary bans driver imports from `@sentinele2e/cli` (mirrors `@sentinele2e/ai`).                                                                                 |
+| E-3 | **Config = `sentinel.config.json`** (not `.ts`)                 | The standalone `node dist/cli.js` bin can't load TS without a loader. JSON is loadable everywhere. Fields: `telemetryDir` (default `test-results/telemetry`), `testDir` (default `tests`), `runner` (default `playwright`), `playwrightConfig` (path). Missing config → sensible defaults; no config file required for `analyze`/`report`.                                                                       |
+| E-4 | **Hand-rolled arg parsing (zero deps)**                         | A tiny dispatcher (`sentinel <command> [args] [--flags]`) — no `commander`/`yargs` dependency, keeping the package lean and the install light.                                                                                                                                                                                                                                                                   |
+| E-5 | **`report` aggregates the telemetry dir → a cross-run summary** | Reads every `*.jsonl` in `telemetryDir`, classifies each run via `@sentinele2e/ai` `analyzeRun(..., {provider:null})`, and aggregates: per-run outcome + verdict counts (real-bug / infra-flake / selector-drift / business-outcome / healthy), the set of drifting `logicalName`s, and which runs contain real bugs. This is the **data layer the slice-F dashboard will render** — same JSON shape feeds both. |
 
 ---
 
@@ -30,7 +30,7 @@ packages/cli/
     dispatch.ts       # parse argv -> route to a command; --help/--version
     config.ts         # loadConfig(cwd): SentinelConfig (json + defaults)
     commands/
-      analyze.ts      # delegates to @sentinel/ai analyzeRun + render
+      analyze.ts      # delegates to @sentinele2e/ai analyzeRun + render
       report.ts       # aggregate telemetryDir/*.jsonl -> RunReport (the dashboard feed)
       init.ts         # scaffold a starter project
       run.ts          # resolve config -> spawn the project's runner (playwright test); --dry-run prints the command
@@ -38,7 +38,7 @@ packages/cli/
   tests/              # offline Playwright-unit tests (no browser): dispatch, config, analyze (fixture jsonl), report (fixture dir), init (temp dir), run (--dry-run command-construction)
 ```
 
-**Wiring:** publishable per slice-D conventions (version `0.1.0`, `main`/`types`/`exports`→`dist`, `files:["dist"]`, `publishConfig public`, `bin:{sentinel:"dist/cli.js"}`, deps `@sentinel/ai`/`@sentinel/core`/`@sentinel/contracts` at `^0.1.0`). Add to root `tsconfig` references + `tsconfig.base.json` paths. ESLint: ban driver/`@playwright/test` imports from `packages/cli/src/**` (it shells out, never imports the runner); tests dir exempt.
+**Wiring:** publishable per slice-D conventions (version `0.1.0`, `main`/`types`/`exports`→`dist`, `files:["dist"]`, `publishConfig public`, `bin:{sentinel:"dist/cli.js"}`, deps `@sentinele2e/ai`/`@sentinele2e/core`/`@sentinele2e/contracts` at `^0.1.0`). Add to root `tsconfig` references + `tsconfig.base.json` paths. ESLint: ban driver/`@playwright/test` imports from `packages/cli/src/**` (it shells out, never imports the runner); tests dir exempt.
 
 ## 2. Commands
 
@@ -48,7 +48,7 @@ Prints usage (the four commands + flags) / the package version. Exit 0.
 
 ### `sentinel analyze <run.jsonl> [--json]`
 
-Delegates to `@sentinel/ai`: `analyzeRun(path, { provider: null })` → `toText`/`toJson`. Exit `1` iff a `real-bug` verdict is present, else `0`. (Behaviour-identical to today's `sentinel-analyze`, now under the unified bin.)
+Delegates to `@sentinele2e/ai`: `analyzeRun(path, { provider: null })` → `toText`/`toJson`. Exit `1` iff a `real-bug` verdict is present, else `0`. (Behaviour-identical to today's `sentinel-analyze`, now under the unified bin.)
 
 ### `sentinel report [dir] [--json]`
 
@@ -83,7 +83,7 @@ Text render: a table of runs + a totals footer; `--json` emits the `RunReport`. 
 
 ### `sentinel init [dir]`
 
-Scaffolds a runnable starter project into `dir` (default `.`, refuses to overwrite a non-empty dir without `--force`): `package.json` (deps `@sentinel/driver-playwright` + `@sentinel/core`/`contracts`, devDep `@playwright/test`, scripts `test`/`analyze`), `sentinel.config.json`, a `playwright.config.ts`, a sample flow + spec under `tests/`, a `.gitignore` (ignoring `test-results/`). Prints next steps. Offline (writes files only).
+Scaffolds a runnable starter project into `dir` (default `.`, refuses to overwrite a non-empty dir without `--force`): `package.json` (deps `@sentinele2e/driver-playwright` + `@sentinele2e/core`/`contracts`, devDep `@playwright/test`, scripts `test`/`analyze`), `sentinel.config.json`, a `playwright.config.ts`, a sample flow + spec under `tests/`, a `.gitignore` (ignoring `test-results/`). Prints next steps. Offline (writes files only).
 
 ### `sentinel run [pattern] [--config <path>] [--dry-run]`
 
@@ -95,7 +95,7 @@ Playwright-unit tests under `packages/cli/tests/`, no browser:
 
 - **dispatch:** unknown command → usage + exit 2; `--help`/`--version`; routing.
 - **config:** defaults when no file; overrides from a fixture `sentinel.config.json`.
-- **analyze:** against a committed fixture JSONL (reuse `@sentinel/ai`'s `invalid-run.jsonl` shape) → business-outcome + drift, exit 0; a real-bug fixture → exit 1.
+- **analyze:** against a committed fixture JSONL (reuse `@sentinele2e/ai`'s `invalid-run.jsonl` shape) → business-outcome + drift, exit 0; a real-bug fixture → exit 1.
 - **report:** a fixture telemetry dir with 2–3 JSONL files → assert `RunReport` totals + drifting locators + `hasRealBug`; empty dir → exit 0 + message.
 - **init:** into a temp dir → assert the scaffold files exist + are valid (package.json parses, config parses); refuses non-empty without `--force`.
 - **run:** `--dry-run` → asserts the constructed `npx playwright test -c … <pattern>` command string (no spawn). (A real spawn needs a project + browser; covered by the dry-run + a documented manual check.)
@@ -104,8 +104,8 @@ Playwright-unit tests under `packages/cli/tests/`, no browser:
 
 1. `npm run typecheck` 0; `npm run lint` 0 (no driver import in `packages/cli/src`); `npm run test:unit` green incl. the new CLI tests (report counts).
 2. `npm run build` emits `packages/cli/dist/cli.js` with the shebang; `sentinel` bin resolves.
-3. `npm pack -w @sentinel/cli --dry-run` ships only `dist` + `package.json` + `README.md`.
-4. Install-verify (best-effort, slice-D style): the packed `@sentinel/cli` tarball installs and `npx sentinel --version` / `sentinel analyze <fixture>` / `sentinel report <fixture-dir>` run from `dist`.
+3. `npm pack -w @sentinele2e/cli --dry-run` ships only `dist` + `package.json` + `README.md`.
+4. Install-verify (best-effort, slice-D style): the packed `@sentinele2e/cli` tarball installs and `npx sentinel --version` / `sentinel analyze <fixture>` / `sentinel report <fixture-dir>` run from `dist`.
 5. `sentinel init` into a temp dir produces a project whose `package.json`/config parse; `sentinel report` over a fixture dir yields the documented `RunReport`; `sentinel run --dry-run` prints the runner command.
 6. The `RunReport` JSON shape is documented as the slice-F dashboard input contract.
 
@@ -118,7 +118,7 @@ Playwright-unit tests under `packages/cli/tests/`, no browser:
 ## 6. Ordered sub-steps
 
 1. **E1 — package skeleton + wiring + dispatch/config/`--help`/`--version`** (offline tests). Gate: typecheck/lint/test:unit green; bin builds.
-2. **E2 — `analyze` command** (delegate to `@sentinel/ai`) + tests (fixture jsonl, exit codes).
+2. **E2 — `analyze` command** (delegate to `@sentinele2e/ai`) + tests (fixture jsonl, exit codes).
 3. **E3 — `report` command + `report-model.ts`** (aggregate fixture telemetry dir → `RunReport`) + tests. Gate: totals/drift/real-bug assertions.
 4. **E4 — `init` command** (scaffold) + tests (temp dir; refuses non-empty without `--force`).
 5. **E5 — `run` command** (spawn wrapper + `--dry-run`) + packaging (manifest per slice D, README, pack-verify) + final acceptance (§4).

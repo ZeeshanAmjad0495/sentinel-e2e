@@ -1,7 +1,7 @@
 // packages/driver-selenium/src/action.ts
 import type { By, WebDriver, WebElement } from "selenium-webdriver";
-import type { Action, ActionOptions, Locator } from "@sentinel/contracts";
-import type { LocatorResolver } from "@sentinel/core";
+import type { Action, ActionOptions, Locator } from "@sentinele2e/contracts";
+import type { LocatorResolver } from "@sentinele2e/core";
 import type { SeleniumElementHandle } from "./element";
 import { waitActionable } from "./actionability";
 

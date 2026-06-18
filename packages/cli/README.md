@@ -1,11 +1,11 @@
-# @sentinel/cli
+# @sentinele2e/cli
 
-The unified `sentinel` command for [Sentinel](https://github.com/ZeeshanAmjad0495/sentinel-e2e) — the operator entry point. It scaffolds a project, runs your flows, and turns the emitted telemetry into a defect classification. The CLI is **driver-agnostic**: it depends only on `@sentinel/ai` + `@sentinel/core`/`@sentinel/contracts` and **shells out** to your project's test runner (`npx playwright test`), so it never imports a browser driver — your project owns that.
+The unified `sentinel` command for [Sentinel](https://github.com/ZeeshanAmjad0495/sentinel-e2e) — the operator entry point. It scaffolds a project, runs your flows, and turns the emitted telemetry into a defect classification. The CLI is **driver-agnostic**: it depends only on `@sentinele2e/ai` + `@sentinele2e/core`/`@sentinele2e/contracts` and **shells out** to your project's test runner (`npx playwright test`), so it never imports a browser driver — your project owns that.
 
 ## Install
 
 ```sh
-npm install -D @sentinel/cli
+npm install -D @sentinele2e/cli
 ```
 
 ## Commands
@@ -19,7 +19,7 @@ sentinel report [dir] [--json]           # aggregate a telemetry dir -> RunRepor
 sentinel --help | --version
 ```
 
-- **`analyze`** delegates to `@sentinel/ai` (rules-only, no API key) and exits `1` iff a `real-bug` verdict is present.
+- **`analyze`** delegates to `@sentinele2e/ai` (rules-only, no API key) and exits `1` iff a `real-bug` verdict is present.
 - **`report`** reads every `*.jsonl` in `dir` (default `config.telemetryDir`), classifies each run, and prints a cross-run table (or `--json`). Exits `1` iff any run has a real bug; an empty/missing dir is not an error.
 - **`run`** builds `npx playwright test -c <playwrightConfig> [pattern]`. `--dry-run` prints the command and exits 0 without spawning (the offline-testable path). A real run spawns the runner inheriting stdio, then hints at `sentinel report`. A real spawn needs a project + installed browsers, so it is exercised manually, not in offline CI (spec §5).
 

@@ -1,6 +1,6 @@
 // packages/ai/tests/analyze.test.ts
 import { test, expect } from "@playwright/test";
-import type { TelemetryEvent } from "@sentinel/core";
+import type { TelemetryEvent } from "@sentinele2e/core";
 import { analyzeRun } from "../src/analyze";
 import { ANALYSIS_SCHEMA_VERSION } from "../src/analysis";
 

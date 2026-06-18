@@ -19,13 +19,13 @@ const PKG_JSON = JSON.stringify(
       analyze: "sentinel report",
     },
     dependencies: {
-      "@sentinel/contracts": "^0.1.0",
-      "@sentinel/core": "^0.1.0",
-      "@sentinel/driver-playwright": "^0.1.0",
+      "@sentinele2e/contracts": "^0.1.0",
+      "@sentinele2e/core": "^0.1.0",
+      "@sentinele2e/driver-playwright": "^0.1.0",
     },
     devDependencies: {
       "@playwright/test": "^1.58.2",
-      "@sentinel/cli": "^0.1.0",
+      "@sentinele2e/cli": "^0.1.0",
     },
   },
   null,
@@ -46,7 +46,7 @@ const SENTINEL_CONFIG = JSON.stringify(
 const PLAYWRIGHT_CONFIG = `import { defineConfig } from "@playwright/test";
 
 // Sentinel projects own the Playwright runner; \`sentinel run\` shells out to it.
-// The flows emit @sentinel/core telemetry into \`${DEFAULT_CONFIG.telemetryDir}\`;
+// The flows emit @sentinele2e/core telemetry into \`${DEFAULT_CONFIG.telemetryDir}\`;
 // run \`sentinel report\` afterwards to classify the runs.
 export default defineConfig({
   testDir: "./${DEFAULT_CONFIG.testDir}",
@@ -63,7 +63,7 @@ export default defineConfig({
 
 const SAMPLE_FLOW = `// tests/flows/example.ts
 // A Sentinel flow drives the app through the driver and emits telemetry.
-// Replace this stub with your own flow built on @sentinel/driver-playwright.
+// Replace this stub with your own flow built on @sentinele2e/driver-playwright.
 export interface ExampleFlowResult {
   readonly ok: boolean;
 }

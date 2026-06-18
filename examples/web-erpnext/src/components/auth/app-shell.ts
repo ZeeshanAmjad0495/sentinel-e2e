@@ -1,5 +1,5 @@
 // examples/web-erpnext/src/components/auth/app-shell.ts
-import type { Session } from "@sentinel/contracts";
+import type { Session } from "@sentinele2e/contracts";
 import { appShellLocators } from "../../domain/auth/locators";
 import { defaultTimeoutMs } from "../../config/timeout";
 

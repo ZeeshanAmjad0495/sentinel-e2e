@@ -8,13 +8,13 @@ import type {
   Locator,
   Session,
   StrategyKind,
-} from "@sentinel/contracts";
+} from "@sentinele2e/contracts";
 import {
   CapabilityUnsupportedError,
   SpanContext,
   StampingSink,
-} from "@sentinel/core";
-import type { TelemetrySink } from "@sentinel/core";
+} from "@sentinele2e/core";
+import type { TelemetrySink } from "@sentinele2e/core";
 import { PlaywrightResolver } from "./resolver";
 import { PlaywrightAction } from "./action";
 import { PlaywrightAssertion } from "./assertion";

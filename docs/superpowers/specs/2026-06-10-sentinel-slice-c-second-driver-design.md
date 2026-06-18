@@ -1,4 +1,4 @@
-# Sentinel Slice C — Second Driver (`@sentinel/driver-selenium`) + Conformance Suite: Design Spec
+# Sentinel Slice C — Second Driver (`@sentinele2e/driver-selenium`) + Conformance Suite: Design Spec
 
 - **Status:** Approved (adversarially-synthesized; supersedes the initial hand-authored draft)
 - **Date:** 2026-06-10
@@ -14,7 +14,7 @@
 
 | #   | Decision                                                                                                                                                                                                                            | One-line justification (verified against repo)                                                                                                                                                                                                                                                                                                                                                                                                                                 |
 | --- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| D0  | **Driver #2 = `selenium-webdriver@^4` (`@sentinel/driver-selenium`)** — chosen autonomously                                                                                                                                         | No auto-wait forces _real_ actionability code (exposes Playwright-isms instead of hiding them); `findElements→[]` is the ideal poll primitive; css/xpath-only is the forcing function for the drift fix. WebdriverIO is rejected on hard evidence: `package-wiring.test.ts` documents that dynamic `import()` of a bare specifier throws `SyntaxError` under this repo's TS-source loader, so WDIO-v9-ESM-via-dynamic-import is unproven-to-broken here; selenium is CommonJS. |
+| D0  | **Driver #2 = `selenium-webdriver@^4` (`@sentinele2e/driver-selenium`)** — chosen autonomously                                                                                                                                      | No auto-wait forces _real_ actionability code (exposes Playwright-isms instead of hiding them); `findElements→[]` is the ideal poll primitive; css/xpath-only is the forcing function for the drift fix. WebdriverIO is rejected on hard evidence: `package-wiring.test.ts` documents that dynamic `import()` of a bare specifier throws `SyntaxError` under this repo's TS-source loader, so WDIO-v9-ESM-via-dynamic-import is unproven-to-broken here; selenium is CommonJS. |
 | D1  | **Drift fix = pure-outcome predicate + resolver one-liner; NO event-schema change**                                                                                                                                                 | Keeps `LocatorResolvedEvent` byte-identical for driver #2; analyzer reasons only about `candidates[].outcome`. Verified to keep all locked `rules.test.ts` + `invalid-run.jsonl` cases green. **Reject P3's `baselineRank` field** (it breaks the `locatorResolved` test factory typecheck and makes the jsonl fixture non-representative, for zero analyzer benefit).                                                                                                         |
 | D2  | **Action `timeoutMs` semantics PINNED in the contract**: bounds time-to-**actionable** — located+displayed+enabled for `tap`/`typeText`/`clear`, located (attached) for `read` — clamped to `min(opts.timeoutMs, defaultTimeoutMs)` | The contract has no actionability concept today; without pinning, the same `timeoutMs` would mean different things per driver. Conformance suite asserts it identically on both.                                                                                                                                                                                                                                                                                               |
 | D3  | **`waitForFirstOf` = single interleaved poll loop** (one promise chain) for Selenium                                                                                                                                                | Structurally zero unhandled rejections (no sibling promises to leak); totality met by construction, not by careful loser-cancellation. Conformance suite asserts only observable behavior, never the 1ms-slice/auto-wait internals.                                                                                                                                                                                                                                            |
@@ -30,7 +30,7 @@
 Prove "tool-agnostic" is real by running the **unchanged contracts** on a maximally-different second web driver and extracting a **shared conformance suite** both drivers pass. Principles:
 
 1. **Contract honesty** — Selenium implements the literal `Driver`/`Session`/`Action`/`Assertion`/`ElementHandle`/`LocatorResolver` surfaces; any concept the contract lacks (actionability) is _added to the contract_, not invented per-driver.
-2. **Schema identity by construction** — both drivers build telemetry envelopes from the same `@sentinel/core` types through the same `StampingSink`; zero new event fields.
+2. **Schema identity by construction** — both drivers build telemetry envelopes from the same `@sentinele2e/core` types through the same `StampingSink`; zero new event fields.
 3. **Analyzer stays driver-agnostic** — it reads `candidates[].outcome`, never driver capabilities; `role` is honestly **skipped** (never faked).
 4. **Refinements folded in now** — cheapest before a 2nd driver multiplies their cost.
 5. **TDD, conventional commits**, all under the existing Playwright unit runner.
@@ -54,7 +54,7 @@ packages/driver-selenium/
 
 ```jsonc
 {
-  "name": "@sentinel/driver-selenium",
+  "name": "@sentinele2e/driver-selenium",
   "version": "1.0.0",
   "private": true,
   "type": "commonjs",
@@ -63,8 +63,8 @@ packages/driver-selenium/
   "engines": { "node": ">=20" },
   "dependencies": {
     "selenium-webdriver": "^4.44.0",
-    "@sentinel/contracts": "*",
-    "@sentinel/core": "*",
+    "@sentinele2e/contracts": "*",
+    "@sentinele2e/core": "*",
   },
   "devDependencies": { "@types/selenium-webdriver": "^4.1.28" },
 }
@@ -74,15 +74,15 @@ packages/driver-selenium/
 
 ### 2.2 tsconfig wiring
 
-- **`tsconfig.base.json` `paths`**: add `"@sentinel/driver-selenium": ["packages/driver-selenium/src/index.ts"]` (+ `/*`).
+- **`tsconfig.base.json` `paths`**: add `"@sentinele2e/driver-selenium": ["packages/driver-selenium/src/index.ts"]` (+ `/*`).
 - **Root `tsconfig.json` `references`**: add `{ "path": "packages/driver-selenium" }`.
 - **`tsconfig.eslint.json`**: no edit (already globs `packages/*/src` + `packages/*/tests`).
-- **`examples/web-erpnext/tsconfig.json`**: add the `@sentinel/driver-selenium` path entries (anchored to `../../packages/...`, like its sibling overrides) so the example Selenium proof test resolves; add the `{ "path": "../../packages/driver-selenium" }` reference.
+- **`examples/web-erpnext/tsconfig.json`**: add the `@sentinele2e/driver-selenium` path entries (anchored to `../../packages/...`, like its sibling overrides) so the example Selenium proof test resolves; add the `{ "path": "../../packages/driver-selenium" }` reference.
 
 ### 2.3 Lint boundary (`eslint.config.cjs`) — three edits
 
-1. **App-code block** (the `paths` array currently banning `@playwright/test`/`playwright`): add `{ name: 'selenium-webdriver', message: 'Selenium is confined to @sentinel/driver-selenium and test-runner dirs.' }` plus a `patterns: [{ group: ['selenium-webdriver', 'selenium-webdriver/*'], message: ... }]` (catches deep imports like `selenium-webdriver/chrome`).
-2. **`@sentinel/ai/src` block**: add the same `selenium-webdriver` path entry. The existing `patterns: ['@sentinel/driver-*']` already bans `@sentinel/driver-selenium` from the analyzer — no change there.
+1. **App-code block** (the `paths` array currently banning `@playwright/test`/`playwright`): add `{ name: 'selenium-webdriver', message: 'Selenium is confined to @sentinele2e/driver-selenium and test-runner dirs.' }` plus a `patterns: [{ group: ['selenium-webdriver', 'selenium-webdriver/*'], message: ... }]` (catches deep imports like `selenium-webdriver/chrome`).
+2. **`@sentinele2e/ai/src` block**: add the same `selenium-webdriver` path entry. The existing `patterns: ['@sentinele2e/driver-*']` already bans `@sentinele2e/driver-selenium` from the analyzer — no change there.
 3. **Exemption block** (`no-restricted-imports: off`): add `'packages/driver-selenium/**/*.ts'`. (`packages/**/tests/**` already covers the conformance suite + example tests.)
 
 A `package-wiring.test.ts` in the selenium package asserts the barrel exports `SeleniumDriver` and that `selenium-webdriver` is a `dependency`.
@@ -176,7 +176,7 @@ export const appShellLocators = {
 ### (c) `@playwright/test` peer — `packages/driver-playwright/package.json`
 
 ```jsonc
-"dependencies": { "@sentinel/contracts": "*", "@sentinel/core": "*" },
+"dependencies": { "@sentinele2e/contracts": "*", "@sentinele2e/core": "*" },
 "peerDependencies": { "@playwright/test": "^1.58.2" },
 "devDependencies": { "@playwright/test": "^1.58.2" }
 ```
@@ -329,7 +329,7 @@ One shared `waitActionable(driver, by, {requireEnabled, deadline})` polling `fin
 
 ### 5.6 Telemetry — schema-identical
 
-Zero invention. Same `StampingSink` keyed on `session.id` ⇒ `traceId == correlationId == Session.id`. Envelopes constructed field-for-field from `@sentinel/core` `LocatorResolvedEvent`/`AssertionEvent`. Flow events (`flow.started`/`finished`/`business.failure`) come from `log-in.ts` (driver-independent) ⇒ unchanged.
+Zero invention. Same `StampingSink` keyed on `session.id` ⇒ `traceId == correlationId == Session.id`. Envelopes constructed field-for-field from `@sentinele2e/core` `LocatorResolvedEvent`/`AssertionEvent`. Flow events (`flow.started`/`finished`/`business.failure`) come from `log-in.ts` (driver-independent) ⇒ unchanged.
 
 ---
 
@@ -422,7 +422,7 @@ Acceptance (numbered, runnable):
 3. `SENTINEL_SELENIUM=1 npm run test:unit`: Selenium compiler tests (browserless), resolver/action/assertion behavioral tests, and **`defineDriverContract` green for BOTH harnesses** with identical assertions; schema-identity helper passes on both.
 4. The Selenium example proof: `logIn` ⇒ deterministic `business-failure` (and `ok` variant) with `page` unused; `classify()` agrees; `submit.degraded === false`.
 5. `npm run typecheck` green (new path mappings + references).
-6. `npm run lint --max-warnings=0` green: `selenium-webdriver` importable only under `packages/driver-selenium/**` + test dirs; `@sentinel/ai/src` imports no driver.
+6. `npm run lint --max-warnings=0` green: `selenium-webdriver` importable only under `packages/driver-selenium/**` + test dirs; `@sentinele2e/ai/src` imports no driver.
 7. Per-action `timeoutMs` honored + clamped on both drivers (conformance group 4).
 8. Zero unhandled rejections on both drivers (conformance group 3 probe).
 9. New `.github/workflows/ci.yml` runs `typecheck`/`lint`/`test:unit` always, and a **separate opt-in job** sets `SENTINEL_SELENIUM=1`, pins chromedriver to the runner's Chrome major, and is **not** required to merge (isolates the unverified-CI risk).

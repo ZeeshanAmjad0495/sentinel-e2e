@@ -1,5 +1,5 @@
 // packages/ai/src/redact.ts
-import type { TelemetryEvent } from "@sentinel/core";
+import type { TelemetryEvent } from "@sentinele2e/core";
 
 const SECRET_KEY =
   /pass(word)?|secret|token|api[-_]?key|authorization|cookie|credential/i;

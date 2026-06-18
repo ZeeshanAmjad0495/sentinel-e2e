@@ -1,5 +1,5 @@
 // examples/web-erpnext/src/domain/auth/locators.ts
-import type { Locator } from "@sentinel/contracts";
+import type { Locator } from "@sentinele2e/contracts";
 
 export const loginLocators = {
   username: {

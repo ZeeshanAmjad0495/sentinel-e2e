@@ -4,17 +4,17 @@ import type {
   Locator,
   LocatorStrategy,
   StrategyKind,
-} from "@sentinel/contracts";
+} from "@sentinele2e/contracts";
 import type {
   LocatorResolution,
   LocatorResolver,
   TelemetrySink,
-} from "@sentinel/core";
+} from "@sentinele2e/core";
 import {
   SelectorAmbiguousError,
   SelectorNotFoundError,
   StrategyRegistry,
-} from "@sentinel/core";
+} from "@sentinele2e/core";
 import { SeleniumElementHandle } from "./element";
 import { compileStrategy, toBy } from "./strategy-compiler";
 

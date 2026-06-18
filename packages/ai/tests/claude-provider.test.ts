@@ -1,14 +1,14 @@
 import { test, expect } from "@playwright/test";
 import Anthropic from "@anthropic-ai/sdk";
-import type { TelemetryEvent } from "@sentinel/core";
-import type { AnalysisContext } from "@sentinel/ai/llm/provider";
+import type { TelemetryEvent } from "@sentinele2e/core";
+import type { AnalysisContext } from "@sentinele2e/ai/llm/provider";
 import {
   ClaudeProvider,
   CLAUDE_MODEL,
   SYSTEM_PROMPT,
   REPORT_TOOL_NAME,
   REPORT_TOOL_INPUT_SCHEMA,
-} from "@sentinel/ai/llm/claude-provider";
+} from "@sentinele2e/ai/llm/claude-provider";
 
 test("ClaudeProvider pins claude-opus-4-8 and constructs from an explicit key", () => {
   expect(CLAUDE_MODEL).toBe("claude-opus-4-8");

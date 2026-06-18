@@ -1,11 +1,11 @@
 {
-  "name": "@sentinel/example-web-erpnext",
+  "name": "@sentinele2e/example-web-erpnext",
   "version": "0.0.0",
   "private": true,
   "dependencies": {
-    "@sentinel/contracts": "*",
-    "@sentinel/core": "*",
-    "@sentinel/driver-playwright": "*",
+    "@sentinele2e/contracts": "*",
+    "@sentinele2e/core": "*",
+    "@sentinele2e/driver-playwright": "*",
     "dotenv": "^17.3.1"
   },
   "devDependencies": {

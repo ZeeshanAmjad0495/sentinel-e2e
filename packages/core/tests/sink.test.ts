@@ -6,8 +6,8 @@ import {
   InMemorySink,
   NoopSink,
   TELEMETRY_SCHEMA_VERSION,
-} from "@sentinel/core";
-import type { TelemetryEnvelope } from "@sentinel/core";
+} from "@sentinele2e/core";
+import type { TelemetryEnvelope } from "@sentinele2e/core";
 
 const evt = (name: string): TelemetryEnvelope => ({
   schemaVersion: TELEMETRY_SCHEMA_VERSION,

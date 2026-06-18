@@ -6,9 +6,9 @@
 // factory (harness.ts) imports neither a driver SDK nor a browser.
 import { test, chromium } from "@playwright/test";
 import type { Browser, Page } from "@playwright/test";
-import type { Session, SessionConfig } from "@sentinel/contracts";
-import type { TelemetrySink } from "@sentinel/core";
-import { PlaywrightDriver } from "@sentinel/driver-playwright";
+import type { Session, SessionConfig } from "@sentinele2e/contracts";
+import type { TelemetrySink } from "@sentinele2e/core";
+import { PlaywrightDriver } from "@sentinele2e/driver-playwright";
 import { defineDriverContract, type DriverHarness } from "./harness";
 import { LOGIN_DOM, INVALID_DOM, toDataUrl } from "./fixtures";
 

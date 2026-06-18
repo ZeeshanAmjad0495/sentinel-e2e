@@ -14,20 +14,20 @@
     "skipLibCheck": true,
     "baseUrl": ".",
     "paths": {
-      "@sentinel/contracts": ["packages/contracts/src/index.ts"],
-      "@sentinel/contracts/*": ["packages/contracts/src/*"],
-      "@sentinel/ai": ["packages/ai/src/index.ts"],
-      "@sentinel/ai/*": ["packages/ai/src/*"],
-      "@sentinel/cli": ["packages/cli/src/index.ts"],
-      "@sentinel/cli/*": ["packages/cli/src/*"],
-      "@sentinel/core": ["packages/core/src/index.ts"],
-      "@sentinel/core/*": ["packages/core/src/*"],
-      "@sentinel/driver-playwright": [
+      "@sentinele2e/contracts": ["packages/contracts/src/index.ts"],
+      "@sentinele2e/contracts/*": ["packages/contracts/src/*"],
+      "@sentinele2e/ai": ["packages/ai/src/index.ts"],
+      "@sentinele2e/ai/*": ["packages/ai/src/*"],
+      "@sentinele2e/cli": ["packages/cli/src/index.ts"],
+      "@sentinele2e/cli/*": ["packages/cli/src/*"],
+      "@sentinele2e/core": ["packages/core/src/index.ts"],
+      "@sentinele2e/core/*": ["packages/core/src/*"],
+      "@sentinele2e/driver-playwright": [
         "packages/driver-playwright/src/index.ts"
       ],
-      "@sentinel/driver-playwright/*": ["packages/driver-playwright/src/*"],
-      "@sentinel/driver-selenium": ["packages/driver-selenium/src/index.ts"],
-      "@sentinel/driver-selenium/*": ["packages/driver-selenium/src/*"]
+      "@sentinele2e/driver-playwright/*": ["packages/driver-playwright/src/*"],
+      "@sentinele2e/driver-selenium": ["packages/driver-selenium/src/index.ts"],
+      "@sentinele2e/driver-selenium/*": ["packages/driver-selenium/src/*"]
     }
   }
 }

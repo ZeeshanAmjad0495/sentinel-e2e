@@ -9,7 +9,7 @@ import type {
   ElementHandle,
   Action,
   Assertion,
-} from "@sentinel/contracts";
+} from "@sentinele2e/contracts";
 
 const noopAction: Action = {
   tap: async () => {},

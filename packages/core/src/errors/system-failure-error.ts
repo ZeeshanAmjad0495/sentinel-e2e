@@ -3,7 +3,7 @@ import type {
   Capability,
   StrategyKind,
   BranchProgress,
-} from "@sentinel/contracts";
+} from "@sentinele2e/contracts";
 
 export type SystemFailureKind =
   | "timeout"

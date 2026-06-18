@@ -1,5 +1,5 @@
 // packages/ai/src/analyze.ts
-import type { TelemetryEvent } from "@sentinel/core";
+import type { TelemetryEvent } from "@sentinele2e/core";
 import type { AnalysisContext, LlmProvider } from "./llm/provider";
 import {
   ANALYSIS_SCHEMA_VERSION,
@@ -22,7 +22,7 @@ export interface AnalyzeOptions {
  *   - explicit provider (incl. a fake) wins;
  *   - null forces rules-only;
  *   - undefined => auto: a ClaudeProvider IFF ANTHROPIC_API_KEY is set, else none.
- * The claude provider is imported LAZILY so importing @sentinel/ai never pulls
+ * The claude provider is imported LAZILY so importing @sentinele2e/ai never pulls
  * @anthropic-ai/sdk into the deterministic path.
  */
 async function resolveProvider(

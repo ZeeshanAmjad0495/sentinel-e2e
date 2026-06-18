@@ -1,11 +1,11 @@
 import { test, expect } from "@playwright/test";
-import type { TelemetryEvent } from "@sentinel/core";
-import { analyzeRun } from "@sentinel/ai/analyze";
+import type { TelemetryEvent } from "@sentinele2e/core";
+import { analyzeRun } from "@sentinele2e/ai/analyze";
 import type {
   AnalysisContext,
   LlmProvider,
   LlmRunResult,
-} from "@sentinel/ai/llm/provider";
+} from "@sentinele2e/ai/llm/provider";
 
 /** A spy provider: records the context it was handed, returns a canned result. */
 class SpyLlmProvider implements LlmProvider {

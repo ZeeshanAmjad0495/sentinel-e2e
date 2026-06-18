@@ -22,7 +22,7 @@ Commands:
 
 Flags:
   --help                         Print this usage.
-  --version                      Print the @sentinel/cli version.`;
+  --version                      Print the @sentinele2e/cli version.`;
 
 /** Resolve the package version from package.json (works from src/ or dist/). */
 function packageVersion(): string {
