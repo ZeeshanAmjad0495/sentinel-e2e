@@ -20,13 +20,21 @@
       ],
       "@sentinel/driver-playwright/*": [
         "../../packages/driver-playwright/src/*"
-      ]
+      ],
+      "@sentinel/driver-selenium": [
+        "../../packages/driver-selenium/src/index.ts"
+      ],
+      "@sentinel/driver-selenium/*": ["../../packages/driver-selenium/src/*"],
+      "@sentinel/ai": ["../../packages/ai/src/index.ts"],
+      "@sentinel/ai/*": ["../../packages/ai/src/*"]
     }
   },
   "references": [
     { "path": "../../packages/contracts" },
     { "path": "../../packages/core" },
-    { "path": "../../packages/driver-playwright" }
+    { "path": "../../packages/driver-playwright" },
+    { "path": "../../packages/driver-selenium" },
+    { "path": "../../packages/ai" }
   ],
   "include": ["src/**/*.ts", "tests/**/*.ts", "playwright.config.ts"]
 }
