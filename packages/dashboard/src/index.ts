@@ -8,3 +8,4 @@ export type {
   BuildDashboardModelOptions,
 } from "./model";
 export { buildDashboardModel, DEFAULT_MAX_EVENTS } from "./model";
+export { escapeHtml, jsonIsland, DASHBOARD_CSS, DASHBOARD_JS } from "./html";
