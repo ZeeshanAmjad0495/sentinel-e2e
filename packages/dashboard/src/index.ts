@@ -1,4 +1,10 @@
 // packages/dashboard/src/index.ts
 // Barrel for @sentinele2e/dashboard — a pure, offline static-HTML generator over
-// run telemetry. Populated across sub-steps F3 (model), F4 (html), F5 (render).
-export {};
+// run telemetry. (render/html surfaces land in F4/F5.)
+export type {
+  DashboardModel,
+  RunDetail,
+  TimelineEntry,
+  BuildDashboardModelOptions,
+} from "./model";
+export { buildDashboardModel, DEFAULT_MAX_EVENTS } from "./model";
