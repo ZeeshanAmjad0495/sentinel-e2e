@@ -1,0 +1,82 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+# Cancel superseded runs on the same ref to save CI minutes.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  # ---------------------------------------------------------------------------
+  # Always-on default job — REQUIRED to merge. Runs the full offline suite on
+  # the repo's Node (22; engines declare node>=20). The unit runner drives the
+  # Playwright driver + browser-backed conformance tests, so chromium must be
+  # installed; the gated Selenium specs SKIP here (SENTINEL_SELENIUM unset).
+  # ---------------------------------------------------------------------------
+  build-and-test:
+    name: typecheck + lint + unit tests (offline)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Node 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Install Playwright chromium (+ OS deps)
+        run: npx playwright install --with-deps chromium
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Unit tests (offline; Selenium specs skip)
+        run: npm run test:unit
+
+  # ---------------------------------------------------------------------------
+  # Opt-in Selenium job — NOT required to merge. Isolates the unverified-CI /
+  # cold-start-flake risk of the browser-backed Selenium suite. `continue-on-
+  # error: true` makes its conclusion non-blocking. On GitHub-hosted runners
+  # Chrome is preinstalled and Selenium Manager auto-provisions a matching
+  # chromedriver; we additionally pin chromedriver to the runner's Chrome major
+  # for determinism. Setting SENTINEL_SELENIUM=1 activates the gated specs.
+  # ---------------------------------------------------------------------------
+  selenium:
+    name: selenium suite (opt-in, non-blocking)
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    env:
+      SENTINEL_SELENIUM: "1"
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Node 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Install Playwright chromium (+ OS deps)
+        run: npx playwright install --with-deps chromium
+
+      - name: Pin chromedriver to the runner's Chrome major
+        uses: browser-actions/setup-chromedriver@v2
+        with:
+          chrome-version: stable
+
+      - name: Unit tests with Selenium (SENTINEL_SELENIUM=1)
+        run: npm run test:unit

@@ -61,8 +61,17 @@ test("Locator carries logicalName, ordered candidates and within()", () => {
     candidates: [],
     within: child.within,
   };
+  // A within-less literal also satisfies Locator now that within is OPTIONAL.
+  const plain: Locator = {
+    logicalName: "auth.login.username",
+    candidates: [{ kind: "css", value: "input#login_email" }],
+  };
   expect(child.candidates[0]?.kind).toBe("role");
-  expect(child.within(parent).logicalName).toBe("auth.card>auth.login.submit");
+  // within is OPTIONAL now: guard the call.
+  expect(child.within?.(parent)?.logicalName).toBe(
+    "auth.card>auth.login.submit",
+  );
+  expect(plain.within).toBeUndefined();
 });
 
 test("ElementHandle is satisfiable", async () => {

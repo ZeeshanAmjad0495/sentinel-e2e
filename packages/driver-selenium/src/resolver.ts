@@ -1,5 +1,5 @@
-// packages/driver-playwright/src/resolver.ts
-import type { Page } from "@playwright/test";
+// packages/driver-selenium/src/resolver.ts
+import type { WebDriver } from "selenium-webdriver";
 import type {
   Locator,
   LocatorStrategy,
@@ -15,8 +15,8 @@ import {
   SelectorNotFoundError,
   StrategyRegistry,
 } from "@sentinel/core";
-import { PlaywrightElementHandle } from "./element";
-import { compileStrategy } from "./strategy-compiler";
+import { SeleniumElementHandle } from "./element";
+import { compileStrategy, toBy } from "./strategy-compiler";
 
 interface ResolverContext {
   readonly correlationId: string;
@@ -31,15 +31,12 @@ interface CandidateRecord {
   readonly rank: number;
 }
 
-export class PlaywrightResolver implements LocatorResolver {
+export class SeleniumResolver implements LocatorResolver {
   constructor(
-    private readonly page: Page,
+    private readonly driver: WebDriver,
     private readonly strategies: ReadonlySet<StrategyKind>,
     private readonly sink: TelemetrySink,
     private readonly ctx: ResolverContext,
-    // S2 exports the StrategyRegistry pre-seeded with the §7 rank table in its
-    // constructor (role=0 … css/xpath=6); the plan's `defaultStrategyRegistry`
-    // export does not exist, so default to a fresh instance per its Task-3 note.
     private readonly registry: StrategyRegistry = new StrategyRegistry(),
   ) {}
 
@@ -56,7 +53,10 @@ export class PlaywrightResolver implements LocatorResolver {
         continue;
       }
 
-      const count = await compileStrategy(this.page, candidate).count();
+      // findElements returns [] (never throws) — the ideal poll primitive.
+      const count = (
+        await this.driver.findElements(toBy(compileStrategy(candidate)))
+      ).length;
       if (count === 0) {
         records.push({ kind: candidate.kind, outcome: "missed", rank });
         continue;
@@ -96,7 +96,7 @@ export class PlaywrightResolver implements LocatorResolver {
       (r) => r.outcome === "missed" && r.rank < winner.rank,
     );
 
-    // EMIT BEFORE returning the handle (spec §6/§7 obligation a).
+    // EMIT BEFORE returning the handle (spec §5.3 obligation; schema-identical to Playwright).
     this.sink.emit({
       schemaVersion: "1.0.0",
       eventId: cryptoRandom(),
@@ -121,7 +121,7 @@ export class PlaywrightResolver implements LocatorResolver {
     });
 
     return {
-      handle: new PlaywrightElementHandle(this.page, locator, winner.strategy),
+      handle: new SeleniumElementHandle(this.driver, locator, winner.strategy),
       resolvedKind: winner.strategy.kind,
       resolvedRank: winner.rank,
       degraded,

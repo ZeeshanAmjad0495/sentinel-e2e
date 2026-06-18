@@ -1,5 +1,5 @@
-// packages/driver-playwright/src/session.ts
-import type { Page } from "@playwright/test";
+// packages/driver-selenium/src/session.ts
+import type { WebDriver } from "selenium-webdriver";
 import type {
   Action,
   Assertion,
@@ -15,12 +15,12 @@ import {
   StampingSink,
 } from "@sentinel/core";
 import type { TelemetrySink } from "@sentinel/core";
-import { PlaywrightResolver } from "./resolver";
-import { PlaywrightAction } from "./action";
-import { PlaywrightAssertion } from "./assertion";
-import { PlaywrightElementHandle } from "./element";
+import { SeleniumResolver } from "./resolver";
+import { SeleniumAction } from "./action";
+import { SeleniumAssertion } from "./assertion";
+import { SeleniumElementHandle } from "./element";
 
-export interface PlaywrightSessionOptions {
+export interface SeleniumSessionOptions {
   readonly defaultTimeoutMs: number;
   readonly strategies: ReadonlySet<StrategyKind>;
   readonly capabilities: ReadonlySet<Capability>;
@@ -29,27 +29,26 @@ export interface PlaywrightSessionOptions {
   readonly id?: string;
 }
 
-export class PlaywrightSession implements Session {
+export class SeleniumSession implements Session {
   readonly id: string;
-  readonly driver = "playwright";
+  readonly driver = "selenium";
   readonly capabilities: ReadonlySet<Capability>;
   readonly telemetry: TelemetrySink;
   readonly action: Action;
   readonly assert: Assertion;
 
-  private readonly page: Page;
-  private readonly resolver: PlaywrightResolver;
+  private readonly wd: WebDriver;
+  private readonly resolver: SeleniumResolver;
 
   constructor(
-    page: Page,
+    wd: WebDriver,
     telemetry: TelemetrySink,
-    opts: PlaywrightSessionOptions,
+    opts: SeleniumSessionOptions,
   ) {
-    this.page = page;
+    this.wd = wd;
     this.id = opts.id ?? globalThis.crypto.randomUUID();
-    // Single per-run SpanContext keyed on the session id, so traceId == correlationId ==
-    // Session.id (spec §6). It is the ONE owner of sequence/spanId; the supplied sink
-    // (e.g. CompositeSink([InMemorySink, JsonlSink])) is a pure output behind the stamper.
+    // Single per-run SpanContext keyed on the session id: traceId == correlationId ==
+    // Session.id (spec §5.6). Identical wiring to PlaywrightSession.
     this.telemetry = new StampingSink(new SpanContext(this.id), telemetry);
     this.capabilities = opts.capabilities;
 
@@ -59,15 +58,20 @@ export class PlaywrightSession implements Session {
       startedAt: Date.now(),
     };
 
-    this.resolver = new PlaywrightResolver(
-      page,
+    this.resolver = new SeleniumResolver(
+      wd,
       opts.strategies,
       this.telemetry,
       ctx,
     );
-    this.action = new PlaywrightAction(this.resolver, opts.defaultTimeoutMs);
-    this.assert = new PlaywrightAssertion(
-      page,
+    this.action = new SeleniumAction(
+      wd,
+      this.resolver,
+      ctx,
+      opts.defaultTimeoutMs,
+    );
+    this.assert = new SeleniumAssertion(
+      wd,
       this.resolver,
       this.telemetry,
       ctx,
@@ -82,7 +86,7 @@ export class PlaywrightSession implements Session {
   require(cap: Capability): void {
     if (!this.capabilities.has(cap)) {
       throw new CapabilityUnsupportedError(
-        `Driver "playwright" does not support capability "${cap}"`,
+        `Driver "selenium" does not support capability "${cap}"`,
         {
           correlationId: this.id,
           flowName: "session",
@@ -95,36 +99,35 @@ export class PlaywrightSession implements Session {
   }
 
   locate(locator: Locator): ElementHandle {
-    // A re-resolving handle: the first candidate is the eager winner; every call
-    // recompiles. The resolver still owns the emit on action/assert paths.
     const primary = locator.candidates[0];
     if (primary === undefined) {
       throw new Error(`Locator "${locator.logicalName}" has no candidates`);
     }
-    return new PlaywrightElementHandle(this.page, locator, primary);
+    return new SeleniumElementHandle(this.wd, locator, primary);
   }
 
   async navigate(url: string): Promise<void> {
     this.require("navigation");
-    await this.page.goto(url);
+    await this.wd.get(url);
   }
 
   async currentUrl(): Promise<string> {
     this.require("navigation");
-    return this.page.url();
+    return this.wd.getCurrentUrl();
   }
 
   async back(): Promise<void> {
     this.require("navigation");
-    await this.page.goBack();
+    await this.wd.navigate().back();
   }
 
   async screenshot(): Promise<Buffer> {
     this.require("screenshot");
-    return this.page.screenshot();
+    const b64 = await this.wd.takeScreenshot();
+    return Buffer.from(b64, "base64");
   }
 
   async end(): Promise<void> {
-    // Page lifecycle is owned by the test (page-wrap path); nothing to tear down.
+    // WebDriver lifecycle is owned by the test (it calls driver.quit()).
   }
 }

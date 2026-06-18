@@ -31,6 +31,7 @@ const msg: Locator = {
 function makeAction(page: Page, sink: InMemorySink) {
   return new PlaywrightAction(
     new PlaywrightResolver(page, STRATEGIES, sink, CTX),
+    5000,
   );
 }
 

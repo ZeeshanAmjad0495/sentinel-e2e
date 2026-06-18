@@ -24,6 +24,14 @@ function isType<T extends TelemetryEvent["type"]>(
   return e.type === type;
 }
 
+/** Drift = a more-durable candidate the driver TRIED and MISSED beat the winner;
+ *  a `skipped` (unsupported) top candidate never counts (spec §4). */
+function isDrift(e: LocatorResolvedEvent): boolean {
+  return e.candidates.some(
+    (c) => c.outcome === "missed" && c.rank < e.resolvedRank,
+  );
+}
+
 function driftEvidence(e: LocatorResolvedEvent): Evidence {
   const trail = e.candidates
     .map((c) => `${c.kind}:${c.outcome}@${c.rank}`)
@@ -128,10 +136,13 @@ export function classify(events: readonly TelemetryEvent[]): RunClassification {
 
   const degradedResolutions = events.filter(
     (e): e is LocatorResolvedEvent =>
-      isType(e, "locator.resolved") && (e.degraded || e.resolvedRank > 0),
+      isType(e, "locator.resolved") && isDrift(e),
   );
-  const degraded =
-    (flow?.didDegrade ?? false) || degradedResolutions.length > 0;
+  // Resolution scan is the SOLE source of truth: a drift verdict requires a
+  // more-durable candidate the driver TRIED and MISSED below the winner. We DROP
+  // the legacy `|| flow?.didDegrade` and `|| resolvedRank > 0` so a css-only run
+  // (top candidates skipped) can never re-leak a false drift.
+  const degraded = degradedResolutions.length > 0;
 
   const verdicts: Verdict[] = [];
   const indeterminate: Verdict[] = [];

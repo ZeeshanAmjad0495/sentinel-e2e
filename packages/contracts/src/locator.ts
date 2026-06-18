@@ -11,5 +11,5 @@ export interface Locator {
   readonly logicalName: string; // STABLE id, "auth.login.submit" — the drift anchor
   readonly candidates: readonly LocatorStrategy[]; // ordered most-durable -> css/xpath fallback
   readonly minScore?: number; // accept threshold; default 1.0 in Slice A (binary)
-  within(parent: Locator): Locator; // scoping/chaining
+  within?(parent: Locator): Locator; // OPTIONAL: scoping/chaining when supported
 }

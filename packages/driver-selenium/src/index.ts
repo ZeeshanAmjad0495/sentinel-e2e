@@ -1,0 +1,11 @@
+export { SeleniumDriver } from "./driver";
+export { SeleniumSession } from "./session";
+export type { SeleniumSessionOptions } from "./session";
+export { SeleniumResolver } from "./resolver";
+export { SeleniumAction } from "./action";
+export { SeleniumAssertion } from "./assertion";
+export { SeleniumElementHandle } from "./element";
+export { compileStrategy, toBy } from "./strategy-compiler";
+export type { ByDescriptor } from "./strategy-compiler";
+export { waitActionable } from "./actionability";
+export type { ActionableOptions } from "./actionability";

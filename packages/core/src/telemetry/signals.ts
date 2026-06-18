@@ -10,8 +10,8 @@ import type { TelemetryEnvelope } from "./event";
 export interface LocatorResolvedEvent extends TelemetryEnvelope<"locator.resolved"> {
   logicalName: string;
   resolvedKind: StrategyKind;
-  resolvedRank: number; // >0 => SELECTOR-DRIFT
-  degraded: boolean; // resolvedRank > 0
+  resolvedRank: number; // rank of the winning candidate (0 = most durable)
+  degraded: boolean; // a more-durable candidate the driver TRIED was MISSED (skipped != degraded)
   candidates: readonly {
     kind: StrategyKind;
     outcome: "matched" | "missed" | "skipped";
@@ -52,7 +52,7 @@ export interface ArtifactCapturedEvent extends TelemetryEnvelope<"artifact.captu
 export interface FlowFinishedEvent extends TelemetryEnvelope<"flow.finished"> {
   outcome: "success" | "business-failure" | "system-failure";
   terminalReason?: string; // domainReason or SystemFailureKind
-  didDegrade: boolean; // true if ANY locator.resolved in the flow had resolvedRank>0
+  didDegrade: boolean; // true iff any locator.resolved was `degraded` by the above rule
 }
 
 /** The emitted event surface: a typed signal OR a plain envelope for the simple event types. */

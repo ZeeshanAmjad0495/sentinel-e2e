@@ -401,3 +401,45 @@ test("classify: auth-invalid run yields business-outcome + two drift verdicts", 
   expect(c.verdicts.some((v) => v.kind === "healthy")).toBe(false);
   expect(c.indeterminate.length).toBe(0);
 });
+
+test("classify: css-only driver: skipped top candidate is not drift", () => {
+  // role+label are UNSUPPORTED (skipped), css matched@6 wins. A skipped top
+  // candidate falling to a supported match is NOT degradation (spec §4).
+  const submit = locatorResolved({
+    logicalName: "auth.login.submit",
+    resolvedKind: "css",
+    resolvedRank: 6,
+    degraded: false,
+    candidates: [
+      { kind: "role", outcome: "skipped", rank: 0 },
+      { kind: "label", outcome: "skipped", rank: 1 },
+      { kind: "css", outcome: "matched", rank: 6 },
+    ],
+  });
+  const events: TelemetryEvent[] = [
+    submit,
+    flowFinished({ outcome: "success", didDegrade: false }),
+  ];
+
+  const c = classify(events);
+
+  expect(c.outcome).toBe("success");
+  expect(c.degraded).toBe(false);
+  expect(c.verdicts.some((v) => v.kind === "selector-drift")).toBe(false);
+  expect(c.verdicts.some((v) => v.kind === "healthy")).toBe(true);
+});
+
+test("classify: didDegrade alone does not produce a drift verdict", () => {
+  // No locator.resolved events at all: the flow boolean must NOT manufacture
+  // drift (outcome-only reasoning is the sole source of truth).
+  const events: TelemetryEvent[] = [
+    flowFinished({ outcome: "success", didDegrade: true }),
+  ];
+
+  const c = classify(events);
+
+  expect(c.outcome).toBe("success");
+  expect(c.degraded).toBe(false);
+  expect(c.verdicts.some((v) => v.kind === "selector-drift")).toBe(false);
+  expect(c.verdicts.some((v) => v.kind === "healthy")).toBe(true);
+});
